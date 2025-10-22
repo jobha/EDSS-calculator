@@ -8,6 +8,7 @@ import { formatEyeAcuity } from "./utils/formatting";
 import { suggestV, suggestBS, suggestP, suggestC, suggestS, suggestBB, suggestM } from "./utils/scoring";
 import { computeEDSSFromInputs, convertVisualForEDSS, convertBBForEDSS, correctedFS, computeAmbulationEDSS } from "./utils/edss";
 import { FSRow } from "./components/FSRow";
+import { validateEDSSInputs, type ValidationWarning } from "./utils/validation";
 
 // ============================================================================
 // CONSTANTS & CONFIGURATION
@@ -130,6 +131,8 @@ export default function App() {
     pronouncedDementia: false,
   });
 
+  const [showExplainModal, setShowExplainModal] = useState(false);
+
   // Auto-suggest numeric FS from checklists (useEffect to avoid scroll jump)
   useEffect(() => { setFs((prev) => ({ ...prev, V: clamp(suggestV(visual), 0, fsMeta.V.max) })); }, [visual]);
   useEffect(() => { setFs((prev) => ({ ...prev, BS: clamp(suggestBS(brainstem), 0, fsMeta.BS.max) })); }, [brainstem]);
@@ -147,16 +150,62 @@ export default function App() {
   const result = useMemo(() => computeEDSSFromInputs(fs, assistance, parsedDistance), [assistance, parsedDistance, fs]);
   const edss = useMemo(() => roundToHalf(result.edss), [result]);
 
+  // Validation warnings
+  const warnings = useMemo(() =>
+    validateEDSSInputs(fs, assistance, parsedDistance, pyramidal, cerebellar, sensory, bb, mental, brainstem, visual, edss, t),
+    [fs, assistance, parsedDistance, pyramidal, cerebellar, sensory, bb, mental, brainstem, visual, edss, t]
+  );
+
   const countFS = (grade: number) => Object.values(fs).filter((v) => v === grade).length;
 
   // Corrected FS values for EDSS calculation
   const correctedFSForDisplay = useMemo(() => correctedFS(fs), [fs]);
   const countCorrectedFS = (grade: number) => Object.values(correctedFSForDisplay).filter((v) => v === grade).length;
 
+  // Translate rationale text from English to current language
+  const translateRationale = (rationale: string): string => {
+    // Map English rationale strings to translation keys
+    const rationaleMap: Record<string, string> = {
+      "Walks ≥50 m with unilateral aid": t.walksWithUnilateralAid50Plus,
+      "Walks <50 m with unilateral aid": t.walksWithUnilateralAidUnder50,
+      "Walks ≥120 m with bilateral aid": t.walksWithBilateralAid120Plus,
+      "Walks ≥5 m but <120 m with bilateral aid": t.walksWithBilateralAid5To120,
+      "Walks <5 m with bilateral aid": t.walksWithBilateralAidUnder5,
+      "Wheelchair; self-propels and transfers independently": t.wheelchairSelfPropels,
+      "Wheelchair; needs help with transfers, self-propels": t.wheelchairNeedsHelp,
+      "Wheelchair; completely dependent": t.wheelchairDependent,
+      "Bed/chair; arms effective": t.bedChairArmsEffective,
+      "Bed-bound; limited arm use": t.bedBoundLimitedArms,
+      "Helpless bedridden": t.helplessBedridden,
+      "Totally helpless; total care": t.totallyHelpless,
+      "Walks 300-499 m unaided": t.walks300to499Unaided,
+      "Walks 200-299 m unaided": t.walks200to299Unaided,
+      "Walks 100-199 m unaided": t.walks100to199Unaided,
+      "Walks <100 m unaided": t.walksUnder100Unaided,
+    };
+
+    // Check for direct match first
+    if (rationaleMap[rationale]) {
+      return rationaleMap[rationale];
+    }
+
+    // Handle "(raised to X due to max FS=Y)" suffix
+    const raisedMatch = rationale.match(/^(.+?)\s+\(raised to ([\d.]+) due to max FS=(\d+)\)$/);
+    if (raisedMatch) {
+      const [, baseRationale, edssValue, maxFSValue] = raisedMatch;
+      const translatedBase = rationaleMap[baseRationale] || baseRationale;
+      const suffix = t.raisedDueToMaxFS.replace('{edss}', edssValue).replace('{maxFS}', maxFSValue);
+      return `${translatedBase} ${suffix}`;
+    }
+
+    // Return as-is if no translation found
+    return rationale;
+  };
+
   // Summary (multi-line, copy-ready)
   const summary = useMemo(() => {
     const ambFinding = assistance === 'none'
-      ? (parsedDistance != null ? `unaided ${parsedDistance} m` : 'unaided (n/a)')
+      ? (parsedDistance != null ? `${t.unaided} ${parsedDistance} m` : `${t.unaided} (n/a)`)
       : (assistanceLevels.find(a=>a.id===assistance)?.label ?? String(assistance));
 
     // Pyramidal summary
@@ -179,112 +228,128 @@ export default function App() {
     const hyperreflexiaSides = [];
     if (pyramidal.hyperreflexiaLeft) hyperreflexiaSides.push('L');
     if (pyramidal.hyperreflexiaRight) hyperreflexiaSides.push('R');
-    const hyperreflexiaText = hyperreflexiaSides.length > 0 ? `hyperreflexia ${hyperreflexiaSides.join('+')}` : '';
+    const hyperreflexiaText = hyperreflexiaSides.length > 0 ? `${t.hyperreflexia.toLowerCase()} ${hyperreflexiaSides.join('+')}` : '';
 
     const babinskiSides = [];
     if (pyramidal.babinskiLeft) babinskiSides.push('L');
     if (pyramidal.babinskiRight) babinskiSides.push('R');
-    const babinskiText = babinskiSides.length > 0 ? `Babinski ${babinskiSides.join('+')}` : '';
+    const babinskiText = babinskiSides.length > 0 ? `${t.babinski} ${babinskiSides.join('+')}` : '';
 
     const clonusSides = [];
     if (pyramidal.clonusLeft) clonusSides.push('L');
     if (pyramidal.clonusRight) clonusSides.push('R');
-    const clonusText = clonusSides.length > 0 ? `clonus ${clonusSides.join('+')}` : '';
+    const clonusText = clonusSides.length > 0 ? `${t.clonus.toLowerCase()} ${clonusSides.join('+')}` : '';
 
     const pFlags = [
-      minMRC < 5 && `min grade ${minMRC}`,
+      minMRC < 5 && `${t.minGrade} ${minMRC}`,
       hyperreflexiaText,
       babinskiText,
       clonusText,
-      pyramidal.spasticGait && 'spastic gait',
-      pyramidal.fatigability && 'fatigue'
+      pyramidal.spasticGait && t.spasticGait,
+      pyramidal.fatigability && t.fatigue
     ].filter(Boolean).join(', ');
-    const pSummary = pFlags || 'normal';
+    const pSummary = pFlags || t.normal;
 
     // Visual summary
     const vCorrected = convertVisualForEDSS(fs.V);
     const leftAcuity = formatEyeAcuity(visual.leftEyeAcuity);
     const rightAcuity = formatEyeAcuity(visual.rightEyeAcuity);
-    const vfDeficit = visual.visualFieldDeficit !== 'none' ? `, ${visual.visualFieldDeficit} VF deficit` : '';
+    const vfDeficitText = visual.visualFieldDeficit === 'mild' ? t.mild :
+                          visual.visualFieldDeficit === 'moderate' ? t.moderate :
+                          visual.visualFieldDeficit === 'marked' ? t.marked : '';
+    const vfDeficit = visual.visualFieldDeficit !== 'none' ? `, ${vfDeficitText} ${t.vfDeficit}` : '';
     const vSummary = `L: ${leftAcuity}, R: ${rightAcuity}${vfDeficit}`;
 
     // Brainstem summary
     const bsFindings = [
-      brainstem.eyeMotilityLevel > 0 && `eye motility ${brainstem.eyeMotilityLevel}`,
-      brainstem.nystagmusLevel > 0 && `nystagmus ${brainstem.nystagmusLevel}`,
-      brainstem.facialSensibilityLevel > 0 && `facial sens ${brainstem.facialSensibilityLevel}`,
-      brainstem.facialSymmetryLevel > 0 && `facial sym ${brainstem.facialSymmetryLevel}`,
-      brainstem.hearingLevel > 0 && `hearing ${brainstem.hearingLevel}`,
-      brainstem.dysarthriaLevel > 0 && `dysarthria ${brainstem.dysarthriaLevel}`,
-      brainstem.dysphagiaLevel > 0 && `dysphagia ${brainstem.dysphagiaLevel}`,
+      brainstem.eyeMotilityLevel > 0 && `${t.eyeMotility} ${brainstem.eyeMotilityLevel}`,
+      brainstem.nystagmusLevel > 0 && `${t.nystagmus} ${brainstem.nystagmusLevel}`,
+      brainstem.facialSensibilityLevel > 0 && `${t.facialSens} ${brainstem.facialSensibilityLevel}`,
+      brainstem.facialSymmetryLevel > 0 && `${t.facialSym} ${brainstem.facialSymmetryLevel}`,
+      brainstem.hearingLevel > 0 && `${t.hearing} ${brainstem.hearingLevel}`,
+      brainstem.dysarthriaLevel > 0 && `${t.dysarthria} ${brainstem.dysarthriaLevel}`,
+      brainstem.dysphagiaLevel > 0 && `${t.dysphagia} ${brainstem.dysphagiaLevel}`,
     ].filter(Boolean).join(', ');
-    const bsSummary = bsFindings || 'normal';
+    const bsSummary = bsFindings || t.normal;
 
     // Cerebellar summary
     const cFindings = [
-      cerebellar.inabilityCoordinatedMovements && 'unable coordinated movements',
-      cerebellar.ataxiaThreeOrFourLimbs && 'ataxia 3-4 limbs',
-      cerebellar.needsAssistanceDueAtaxia && 'needs assistance',
-      cerebellar.limbAtaxiaAffectsFunction && 'limb ataxia affects function',
-      cerebellar.gaitAtaxia && 'gait ataxia',
-      cerebellar.truncalAtaxiaEO && 'truncal ataxia',
-      cerebellar.tremorOrAtaxiaOnCoordTests && 'tremor/ataxia on testing',
-      cerebellar.rombergFallTendency && 'Romberg fall',
-      cerebellar.lineWalkDifficulty && 'tandem walk difficulty',
+      cerebellar.inabilityCoordinatedMovements && t.unableCoordinatedMovements,
+      cerebellar.ataxiaThreeOrFourLimbs && t.ataxia34Limbs,
+      cerebellar.needsAssistanceDueAtaxia && t.needsAssistance,
+      cerebellar.limbAtaxiaAffectsFunction && t.limbAtaxiaAffectsFunction,
+      cerebellar.gaitAtaxia && t.gaitAtaxia,
+      cerebellar.truncalAtaxiaEO && t.truncalAtaxia,
+      cerebellar.tremorOrAtaxiaOnCoordTests && t.tremorAtaxiaOnTesting,
+      cerebellar.rombergFallTendency && t.rombergFall,
+      cerebellar.lineWalkDifficulty && t.tandemWalkDifficulty,
     ].filter(Boolean).join(', ');
-    const cSummary = cFindings || 'normal';
+    const cSummary = cFindings || t.normal;
 
     // Sensory summary
+    const getSeverityText = (severity: string) => {
+      if (severity === 'mild') return t.mild;
+      if (severity === 'moderate') return t.moderate;
+      if (severity === 'marked') return t.marked;
+      return severity;
+    };
     const sFindings = [
-      sensory.vibSeverity !== 'normal' && sensory.vibCount > 0 && `vib ${sensory.vibSeverity} ${sensory.vibCount} limbs`,
-      sensory.ptSeverity !== 'normal' && sensory.ptCount > 0 && `pain/touch ${sensory.ptSeverity} ${sensory.ptCount} limbs`,
-      sensory.jpSeverity !== 'normal' && sensory.jpCount > 0 && `joint pos ${sensory.jpSeverity} ${sensory.jpCount} limbs`,
+      sensory.vibSeverity !== 'normal' && sensory.vibCount > 0 && `${t.vib} ${getSeverityText(sensory.vibSeverity)} ${sensory.vibCount} ${t.limbs}`,
+      sensory.ptSeverity !== 'normal' && sensory.ptCount > 0 && `${t.painTouch} ${getSeverityText(sensory.ptSeverity)} ${sensory.ptCount} ${t.limbs}`,
+      sensory.jpSeverity !== 'normal' && sensory.jpCount > 0 && `${t.jointPos} ${getSeverityText(sensory.jpSeverity)} ${sensory.jpCount} ${t.limbs}`,
     ].filter(Boolean).join(', ');
-    const sSummary = sFindings || 'normal';
+    const sSummary = sFindings || t.normal;
 
     // Bowel/Bladder summary
     const bbFindings = [
-      bb.lossBladderFunction && 'loss bladder function',
-      bb.lossBowelFunction && 'loss bowel function',
-      bb.permanentCatheter && 'permanent catheter',
-      bb.bowelIncontinenceWeekly && 'bowel incontinence weekly',
-      bb.frequentIncontinence && 'frequent incontinence',
-      bb.intermittentCatheterization && 'intermittent cath',
-      bb.needsHelpForBowelMovement && 'needs help for BM',
-      bb.moderateUrge && 'moderate urge',
-      bb.moderateConstipation && 'moderate constipation',
-      bb.rareIncontinence && 'rare incontinence',
-      bb.severeConstipation && 'severe constipation',
-      bb.mildUrge && 'mild urge',
-      bb.mildConstipation && 'mild constipation',
+      bb.lossBladderFunction && t.lossBladderFunction,
+      bb.lossBowelFunction && t.lossBowelFunction,
+      bb.permanentCatheter && t.permanentCatheter,
+      bb.bowelIncontinenceWeekly && t.bowelIncontinenceWeekly,
+      bb.frequentIncontinence && t.frequentIncontinence,
+      bb.intermittentCatheterization && t.intermittentCath,
+      bb.needsHelpForBowelMovement && t.needsHelpForBM,
+      bb.moderateUrge && t.moderateUrge,
+      bb.moderateConstipation && t.moderateConstipation,
+      bb.rareIncontinence && t.rareIncontinence,
+      bb.severeConstipation && t.severeConstipation,
+      bb.mildUrge && t.mildUrge,
+      bb.mildConstipation && t.mildConstipation,
     ].filter(Boolean).join(', ');
     const bbCorrected = convertBBForEDSS(fs.BB);
-    const bbSummary = bbFindings || 'normal';
+    const bbSummary = bbFindings || t.normal;
 
     // Mental summary
     const mFindings = [
-      mental.pronouncedDementia && 'pronounced dementia',
-      mental.markedlyReducedCognition && 'markedly reduced cognition',
-      mental.moderatelyReducedCognition && 'moderately reduced cognition',
-      mental.lightlyReducedCognition && 'lightly reduced cognition',
-      mental.moderateToSevereFatigue && 'moderate-severe fatigue',
-      mental.mildFatigue && 'mild fatigue',
+      mental.pronouncedDementia && t.pronouncedDementia,
+      mental.markedlyReducedCognition && t.markedlyReducedCognition,
+      mental.moderatelyReducedCognition && t.moderatelyReducedCognition,
+      mental.lightlyReducedCognition && t.lightlyReducedCognition,
+      mental.moderateToSevereFatigue && t.moderateSevereFatigue,
+      mental.mildFatigue && t.mildFatigue,
     ].filter(Boolean).join(', ');
-    const mSummary = mFindings || 'normal';
+    const mSummary = mFindings || t.normal;
+
+    const ambulation = computeAmbulationEDSS(assistance, parsedDistance);
+    const ambulationDisplay = ambulation
+      ? `Ambulation ${ambulation.edss.toFixed(1)} (${ambFinding})`
+      : assistance === 'none'
+        ? `Ambulation 0 (${ambFinding})`
+        : `Ambulation - (${ambFinding})`;
 
     const lines = [
       `EDSS ${edss.toFixed(1)}`,
-      `Ambulation ${(computeAmbulationEDSS(assistance, parsedDistance)?.edss ?? edss).toFixed(1)} (${ambFinding})`,
-      `P ${fs.P}${pSummary !== 'normal' ? ` (${pSummary})` : ''}`,
-      `V ${fs.V}${fs.V !== vCorrected ? ` (corrected: ${vCorrected})` : ''}${vSummary !== 'L: 1.0, R: 1.0' || visual.visualFieldDeficit !== 'none' ? ` (${vSummary})` : ''}`,
-      `BS ${fs.BS}${bsSummary !== 'normal' ? ` (${bsSummary})` : ''}`,
-      `C ${fs.C}${cSummary !== 'normal' ? ` (${cSummary})` : ''}`,
-      `S ${fs.S}${sSummary !== 'normal' ? ` (${sSummary})` : ''}`,
-      `BB ${fs.BB}${fs.BB !== bbCorrected ? ` (corrected: ${bbCorrected})` : ''}${bbSummary !== 'normal' ? ` (${bbSummary})` : ''}`,
-      `M ${fs.M}${mSummary !== 'normal' ? ` (${mSummary})` : ''}`,
+      ambulationDisplay,
+      `P ${fs.P}${pSummary !== t.normal ? ` (${pSummary})` : ''}`,
+      `V ${fs.V}${fs.V !== vCorrected ? ` (${t.corrected}: ${vCorrected})` : ''}${vSummary !== 'L: 1.0, R: 1.0' || visual.visualFieldDeficit !== 'none' ? ` (${vSummary})` : ''}`,
+      `BS ${fs.BS}${bsSummary !== t.normal ? ` (${bsSummary})` : ''}`,
+      `C ${fs.C}${cSummary !== t.normal ? ` (${cSummary})` : ''}`,
+      `S ${fs.S}${sSummary !== t.normal ? ` (${sSummary})` : ''}`,
+      `BB ${fs.BB}${fs.BB !== bbCorrected ? ` (${t.corrected}: ${bbCorrected})` : ''}${bbSummary !== t.normal ? ` (${bbSummary})` : ''}`,
+      `M ${fs.M}${mSummary !== t.normal ? ` (${mSummary})` : ''}`,
     ];
     return lines.join('\n');
-  }, [edss, fs, assistance, parsedDistance, pyramidal, visual, brainstem, cerebellar, sensory, bb, mental]);
+  }, [edss, fs, assistance, parsedDistance, pyramidal, visual, brainstem, cerebellar, sensory, bb, mental, t]);
 
   // Full examination text (narrative format with normal findings)
   const examinationText = useMemo(() => {
@@ -1141,7 +1206,7 @@ export default function App() {
                 <div className="text-5xl font-black">{edss.toFixed(1)}</div>
                 <div className="text-sm uppercase tracking-wide opacity-60">EDSS</div>
               </div>
-              <div className="mt-2 text-sm opacity-80">{result.rationale.replace(/;\s*guarded by FS/g, '')}</div>
+              <div className="mt-2 text-sm opacity-80">{result.rationale}</div>
               <div className="mt-4 text-xs opacity-70">
                 <div>{t.rawFS}: {countFS(0)}×0, {countFS(1)}×1, {countFS(2)}×2, {countFS(3)}×3, {countFS(4)}×4, {countFS(5)}×5, {countFS(6)}×6</div>
                 <div className="mt-1">{t.correctedFS}: {countCorrectedFS(0)}×0, {countCorrectedFS(1)}×1, {countCorrectedFS(2)}×2, {countCorrectedFS(3)}×3, {countCorrectedFS(4)}×4, {countCorrectedFS(5)}×5</div>
@@ -1150,8 +1215,24 @@ export default function App() {
               <div className="mt-6 p-3 rounded-xl border bg-gray-50">
                 <div className="text-xs font-semibold mb-2">{t.quickSummary}</div>
                 <pre className="whitespace-pre-wrap text-xs">{summary}</pre>
-                <button onClick={copySummary} className="mt-2 px-3 py-2 rounded-xl border text-sm hover:bg-gray-100">{copied ? t.copied : t.copySummary}</button>
+                <div className="flex gap-2 mt-2">
+                  <button onClick={copySummary} className="px-3 py-2 rounded-xl border text-sm hover:bg-gray-100">{copied ? t.copied : t.copySummary}</button>
+                  <button onClick={() => setShowExplainModal(true)} className="px-3 py-2 rounded-xl border text-sm hover:bg-blue-50 hover:border-blue-300">{t.explainEDSS}</button>
+                </div>
               </div>
+
+              {warnings.length > 0 && (
+                <div className="mt-4 p-3 rounded-xl border border-amber-300 bg-amber-50">
+                  <div className="text-xs font-semibold mb-2 text-amber-900">{t.warnings}</div>
+                  <div className="space-y-2">
+                    {warnings.map((warning, idx) => (
+                      <div key={idx} className={`text-xs p-2 rounded-lg ${warning.type === 'warning' ? 'bg-amber-100 text-amber-900' : 'bg-blue-100 text-blue-900'}`}>
+                        <span className="font-semibold">{warning.type === 'warning' ? '⚠️' : 'ℹ️'}</span> {warning.message}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div className="mt-4 p-3 rounded-xl border bg-gray-50">
                 <div className="text-xs font-semibold mb-2">{t.fullExamText}</div>
@@ -1162,6 +1243,291 @@ export default function App() {
           </section>
         </div>
       </div>
+
+      {/* Explain EDSS Modal */}
+      {showExplainModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={() => setShowExplainModal(false)}>
+          <div className="bg-white rounded-2xl p-6 max-w-2xl max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold">{t.edssCalculationExplanation}</h2>
+              <button onClick={() => setShowExplainModal(false)} className="text-gray-500 hover:text-gray-700 text-2xl leading-none">&times;</button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Step 1: Raw FS Scores */}
+              <div className="p-4 rounded-xl bg-gray-50 border">
+                <div className="font-semibold text-sm mb-2">{t.step} 1: {t.rawFSScores}</div>
+                <div className="text-sm">
+                  V={fs.V}, BS={fs.BS}, P={fs.P}, C={fs.C}, S={fs.S}, BB={fs.BB}, M={fs.M}
+                </div>
+              </div>
+
+              {/* Step 2: Corrected FS Scores */}
+              <div className="p-4 rounded-xl bg-blue-50 border border-blue-200">
+                <div className="font-semibold text-sm mb-2">{t.step} 2: {t.correctedFSScores}</div>
+                <div className="text-sm space-y-1">
+                  {fs.V !== correctedFSForDisplay.V && (
+                    <div>• {t.visual}: {fs.V} → {correctedFSForDisplay.V} ({t.correctedPerEDSSRules})</div>
+                  )}
+                  {fs.BB !== correctedFSForDisplay.BB && (
+                    <div>• {t.bowelBladder}: {fs.BB} → {correctedFSForDisplay.BB} ({t.correctedPerEDSSRules})</div>
+                  )}
+                  {fs.V === correctedFSForDisplay.V && fs.BB === correctedFSForDisplay.BB && (
+                    <div className="text-gray-600">{t.noCorrectionsNeeded}</div>
+                  )}
+                  <div className="mt-2 font-mono text-xs">
+                    V={correctedFSForDisplay.V}, BS={correctedFSForDisplay.BS}, P={correctedFSForDisplay.P}, C={correctedFSForDisplay.C}, S={correctedFSForDisplay.S}, BB={correctedFSForDisplay.BB}, M={correctedFSForDisplay.M}
+                  </div>
+                </div>
+              </div>
+
+              {/* Step 3: Ambulation Assessment */}
+              <div className="p-4 rounded-xl bg-amber-50 border border-amber-200">
+                <div className="font-semibold text-sm mb-2">{t.step} 3: {t.ambulationAssessment}</div>
+                <div className="text-sm">
+                  {assistance === 'none' && parsedDistance !== null && parsedDistance >= 500 ? (
+                    <div>• {t.walks500PlusUnaided}</div>
+                  ) : assistance === 'none' && parsedDistance !== null ? (
+                    <div>• {t.walksUnaidedDistance.replace('{distance}', parsedDistance.toString())} → {translateRationale(computeAmbulationEDSS(assistance, parsedDistance)?.rationale || '')}</div>
+                  ) : assistance !== 'none' ? (
+                    <div>• {translateRationale(computeAmbulationEDSS(assistance, parsedDistance)?.rationale || '')}</div>
+                  ) : (
+                    <div>• {t.noDistanceSpecified}</div>
+                  )}
+                </div>
+              </div>
+
+              {/* Step 4: EDSS Calculation Rule */}
+              <div className="p-4 rounded-xl bg-green-50 border border-green-200">
+                <div className="font-semibold text-sm mb-2">{t.step} 4: {t.edssCalculation}</div>
+                <div className="text-sm space-y-1">
+                  <div className="font-mono text-xs bg-white p-2 rounded border">
+                    {translateRationale(result.rationale)}
+                  </div>
+                  <div className="mt-2">
+                    • {t.maximumFS}: {Math.max(...Object.values(correctedFSForDisplay))}
+                  </div>
+                  <div>
+                    • {t.edssMaximumExplanation}
+                  </div>
+                </div>
+              </div>
+
+              {/* FS Pattern Table */}
+              <div className="p-4 rounded-xl bg-purple-50 border border-purple-200">
+                <div className="font-semibold text-sm mb-3">{t.fsPatternsTableTitle}</div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-purple-100">
+                        <th className="border border-purple-300 px-2 py-2 text-center font-semibold">FS 0</th>
+                        <th className="border border-purple-300 px-2 py-2 text-center font-semibold">FS 1</th>
+                        <th className="border border-purple-300 px-2 py-2 text-center font-semibold">FS 2</th>
+                        <th className="border border-purple-300 px-2 py-2 text-center font-semibold">FS 3</th>
+                        <th className="border border-purple-300 px-2 py-2 text-center font-semibold">FS 4</th>
+                        <th className="border border-purple-300 px-2 py-2 text-center font-semibold">FS 5</th>
+                        <th className="border border-purple-300 px-2 py-2 text-center font-semibold">FS 6</th>
+                        <th className="border border-purple-300 px-2 py-2 text-center font-semibold">EDSS</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white">
+                      <tr>
+                        <td className="border border-purple-200 px-2 py-2 text-center">{t.all}</td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2 text-center font-mono">0</td>
+                      </tr>
+                      <tr>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2 text-center">1</td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2 text-center font-mono">1</td>
+                      </tr>
+                      <tr>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2 text-center">&gt;1</td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2 text-center font-mono">1.5</td>
+                      </tr>
+                      <tr>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2 text-center">1</td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2 text-center font-mono">2</td>
+                      </tr>
+                      <tr>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2 text-center">2</td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2 text-center font-mono">2.5</td>
+                      </tr>
+                      <tr>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2 text-center">0</td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2 text-center">1</td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2 text-center font-mono">3</td>
+                      </tr>
+                      <tr>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2 text-center">3-4</td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2 text-center font-mono">3</td>
+                      </tr>
+                      <tr>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2 text-center">1-2</td>
+                        <td className="border border-purple-200 px-2 py-2 text-center">1</td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2 text-center font-mono">3.5</td>
+                      </tr>
+                      <tr>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2 text-center">0</td>
+                        <td className="border border-purple-200 px-2 py-2 text-center">2</td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2 text-center font-mono">3.5</td>
+                      </tr>
+                      <tr>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2 text-center">5</td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2 text-center font-mono">3.5</td>
+                      </tr>
+                      <tr>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2 text-center">0</td>
+                        <td className="border border-purple-200 px-2 py-2 text-center">0</td>
+                        <td className="border border-purple-200 px-2 py-2 text-center">1</td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2 text-center font-mono">4</td>
+                      </tr>
+                      <tr>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2 text-center">&gt;0</td>
+                        <td className="border border-purple-200 px-2 py-2 text-center">2-4</td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2 text-center font-mono">4</td>
+                      </tr>
+                      <tr>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2 text-center">&gt;5</td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2 text-center font-mono">4</td>
+                      </tr>
+                      <tr>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2 text-center">5</td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2 text-center font-mono">4.5</td>
+                      </tr>
+                      <tr>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2 text-center">1-2</td>
+                        <td className="border border-purple-200 px-2 py-2 text-center">1</td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2 text-center font-mono">4.5</td>
+                      </tr>
+                      <tr>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2 text-center">&gt;=1</td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2 text-center font-mono">5</td>
+                      </tr>
+                      <tr>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2 text-center">&gt;=2</td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2 text-center font-mono">5</td>
+                      </tr>
+                      <tr>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2 text-center">&gt;=6</td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2"></td>
+                        <td className="border border-purple-200 px-2 py-2 text-center font-mono">5</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Final Result */}
+              <div className="p-4 rounded-xl bg-indigo-100 border-2 border-indigo-400">
+                <div className="font-bold text-lg">{t.finalEDSS}: {edss.toFixed(1)}</div>
+              </div>
+            </div>
+
+            <button onClick={() => setShowExplainModal(false)} className="mt-6 w-full px-4 py-3 rounded-xl border bg-gray-100 hover:bg-gray-200 font-semibold">
+              {t.close}
+            </button>
+          </div>
+        </div>
+      )}
     </>
   );
 }

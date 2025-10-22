@@ -31,21 +31,120 @@ function computeLowEDSS_Neurostatus(fs: Record<string, number>) {
   const v = Object.values(fs);
   const cnt = (n: number) => v.filter((x) => x === n).length;
   const max = Math.max(...v);
-  const noneAbove = (n: number) => v.every((x) => x <= n);
-  const rules = [
-    { when: () => v.every((x) => x === 0), out: { edss: 0.0, rationale: "All FS = 0" } },
-    { when: () => cnt(1) === 1 && noneAbove(1), out: { edss: 1.0, rationale: "Single FS = 1; others 0" } },
-    { when: () => cnt(1) >= 2 && noneAbove(1), out: { edss: 1.5, rationale: ">=2 FS = 1; others 0" } },
-    { when: () => cnt(2) === 1 && noneAbove(2), out: { edss: 2.0, rationale: "Single FS = 2; others <=1" } },
-    { when: () => cnt(2) === 2 && noneAbove(2), out: { edss: 2.5, rationale: "Two FS = 2; others <=1" } },
-    { when: () => cnt(2) >= 3 && noneAbove(2), out: { edss: 3.0, rationale: "Three or four FS = 2; others <=1" } },
-    { when: () => cnt(3) === 1 && cnt(2) >= 1 && noneAbove(3), out: { edss: 3.5, rationale: "One FS = 3 plus others = 2" } },
-    { when: () => cnt(3) === 1 && v.filter((x) => x !== 3).every((x) => x <= 2), out: { edss: 3.0, rationale: "Single FS = 3; others <=2" } },
-    { when: () => cnt(3) >= 2 && noneAbove(3), out: { edss: 3.5, rationale: "Two FS = 3" } },
-  ] as const;
-  for (const r of rules) if (r.when()) return r.out as { edss: number; rationale: string };
-  if (max <= 3) return { edss: 3.5, rationale: "FS pattern consistent with <=3.5" } as const;
-  return null;
+
+  // Count occurrences at each FS level
+  const cnt1 = cnt(1);
+  const cnt2 = cnt(2);
+  const cnt3 = cnt(3);
+  const cnt4 = cnt(4);
+  const cnt5 = cnt(5);
+  const cnt6 = cnt(6);
+
+  // Row 1: All FS = 0 → EDSS 0
+  if (v.every((x) => x === 0)) {
+    return { edss: 0.0, rationale: "All FS = 0" };
+  }
+
+  // Row 2: FS1=1 → EDSS 1
+  if (cnt1 === 1 && max === 1) {
+    return { edss: 1.0, rationale: "Single FS = 1" };
+  }
+
+  // Row 3: FS1>1 → EDSS 1.5
+  if (cnt1 > 1 && max === 1) {
+    return { edss: 1.5, rationale: ">1 FS = 1" };
+  }
+
+  // Row 4: FS2=1 → EDSS 2
+  if (cnt2 === 1 && max === 2) {
+    return { edss: 2.0, rationale: "Single FS = 2" };
+  }
+
+  // Row 5: FS2=2 → EDSS 2.5
+  if (cnt2 === 2 && max === 2) {
+    return { edss: 2.5, rationale: "Two FS = 2" };
+  }
+
+  // Row 6: FS1=0, FS3=1 → EDSS 3
+  if (cnt1 === 0 && cnt3 === 1 && max === 3) {
+    return { edss: 3.0, rationale: "Single FS = 3, no FS = 1" };
+  }
+
+  // Row 7: FS2=3-4 → EDSS 3
+  if (cnt2 >= 3 && cnt2 <= 4 && max === 2) {
+    return { edss: 3.0, rationale: "3-4 FS = 2" };
+  }
+
+  // Row 8: FS1=1-2, FS2=1 → EDSS 3.5 (must check before row 15)
+  if (cnt1 >= 1 && cnt1 <= 2 && cnt2 === 1 && max === 2) {
+    return { edss: 3.5, rationale: "1-2 FS = 1, single FS = 2" };
+  }
+
+  // Row 9: FS1=0, FS2=2 → EDSS 3.5
+  if (cnt1 === 0 && cnt2 === 2 && max === 2) {
+    return { edss: 3.5, rationale: "Two FS = 2, no FS = 1" };
+  }
+
+  // Row 10: FS2=5 → EDSS 3.5
+  if (cnt2 === 5 && max === 2) {
+    return { edss: 3.5, rationale: "Five FS = 2" };
+  }
+
+  // Row 11: FS1=0, FS2=0, FS3=1 → EDSS 4
+  if (cnt1 === 0 && cnt2 === 0 && cnt3 === 1 && max === 3) {
+    return { edss: 4.0, rationale: "Single FS = 3, no FS = 1 or 2" };
+  }
+
+  // Row 12: FS1>0, FS2=2-4 → EDSS 4
+  if (cnt1 > 0 && cnt2 >= 2 && cnt2 <= 4 && max === 2) {
+    return { edss: 4.0, rationale: ">0 FS = 1, 2-4 FS = 2" };
+  }
+
+  // Row 13: FS2>5 → EDSS 4
+  if (cnt2 > 5 && max === 2) {
+    return { edss: 4.0, rationale: ">5 FS = 2" };
+  }
+
+  // Row 14: FS3=5 → EDSS 4.5
+  if (cnt3 === 5 && max === 3) {
+    return { edss: 4.5, rationale: "Five FS = 3" };
+  }
+
+  // Row 15: FS3=1-2, FS4=1 → EDSS 4.5
+  if (cnt3 >= 1 && cnt3 <= 2 && cnt4 === 1 && max === 4) {
+    return { edss: 4.5, rationale: "1-2 FS = 3, single FS = 4" };
+  }
+
+  // Row 16: FS5>=1 → EDSS 5
+  if (cnt5 >= 1) {
+    return { edss: 5.0, rationale: "FS = 5 present" };
+  }
+
+  // Row 17: FS4>=2 → EDSS 5
+  if (cnt4 >= 2) {
+    return { edss: 5.0, rationale: ">=2 FS = 4" };
+  }
+
+  // Row 18: FS3>=6 → EDSS 5
+  if (cnt3 >= 6) {
+    return { edss: 5.0, rationale: ">=6 FS = 3" };
+  }
+
+  // If max FS is 6, always EDSS 5.0
+  if (cnt6 >= 1) {
+    return { edss: 5.0, rationale: "FS = 6 present" };
+  }
+
+  // Fallback for any unmatched patterns
+  if (max >= 4) {
+    return { edss: 5.0, rationale: "FS >= 4 present" };
+  }
+
+  if (max === 3) {
+    return { edss: 4.5, rationale: "FS = 3 pattern" };
+  }
+
+  return { edss: 4.0, rationale: "Default pattern" };
 }
 
 export function computeAmbulationEDSS(assistance: AssistanceId, distanceNoAid: number | null) {
@@ -107,16 +206,22 @@ export function computeEDSSFromInputs(fs: Record<string, number>, assistance: As
     const ambAid = computeAmbulationEDSS(assistance, distanceNoAid);
     const base = ambAid ?? (low ?? { edss: 4.0, rationale: "Default 4.0" } as const);
     const maxFS = Math.max(...Object.values(correctedFSValues));
-    return { edss: Math.max(base.edss, ceilToHalf(maxFS)), rationale: base.rationale + "; guarded by FS" } as const;
+    const finalEDSS = Math.max(base.edss, ceilToHalf(maxFS));
+    const rationale = finalEDSS > base.edss ? base.rationale + ` (raised to ${finalEDSS} due to max FS=${maxFS})` : base.rationale;
+    return { edss: finalEDSS, rationale } as const;
   }
   if (distanceNoAid == null) {
     const base = low ?? ({ edss: 4.0, rationale: "Default 4.0" } as const);
     const maxFS = Math.max(...Object.values(correctedFSValues));
-    return { edss: Math.max(base.edss, ceilToHalf(maxFS)), rationale: base.rationale + "; guarded by FS" } as const;
+    const finalEDSS = Math.max(base.edss, ceilToHalf(maxFS));
+    const rationale = finalEDSS > base.edss ? base.rationale + ` (raised to ${finalEDSS} due to max FS=${maxFS})` : base.rationale;
+    return { edss: finalEDSS, rationale } as const;
   }
   let base: { edss: number; rationale: string } | null = null;
   if (distanceNoAid >= 500) base = low ?? { edss: 4.0, rationale: "Walks >=500 m unaided" } as const;
   else base = computeAmbulationEDSS(assistance, distanceNoAid) ?? (low ?? { edss: 4.5, rationale: "Distance <500 m" } as const);
   const maxFS = Math.max(...Object.values(correctedFSValues));
-  return { edss: Math.max(base.edss, ceilToHalf(maxFS)), rationale: base.rationale + "; guarded by FS" } as const;
+  const finalEDSS = Math.max(base.edss, ceilToHalf(maxFS));
+  const rationale = finalEDSS > base.edss ? base.rationale + ` (raised to ${finalEDSS} due to max FS=${maxFS})` : base.rationale;
+  return { edss: finalEDSS, rationale } as const;
 }
