@@ -208,6 +208,10 @@ const translations = {
     painTouchDeficit: "pain/touch deficit in",
     jointPositionDeficit: "joint position sense deficit in",
     limbS: "limb(s)",
+    rightArm: "right arm",
+    leftArm: "left arm",
+    rightLeg: "right leg",
+    leftLeg: "left leg",
     bowelBladderNormal: "Bowel and bladder function normal",
     bladderFunction: "Bladder",
     bowelFunction: "Bowel",
@@ -421,6 +425,10 @@ const translations = {
     painTouchDeficit: "smerte/berøringsutfall i",
     jointPositionDeficit: "leddsansutfall i",
     limbS: "ekstremitet(er)",
+    rightArm: "høyre arm",
+    leftArm: "venstre arm",
+    rightLeg: "høyre ben",
+    leftLeg: "venstre ben",
     bowelBladderNormal: "Tarm- og blærefunksjon normal",
     bladderFunction: "Blære",
     bowelFunction: "Tarm",
@@ -512,9 +520,12 @@ type PyramidalForm = {
   anklePlantarflexionR: number;
   anklePlantarflexionL: number;
   // Upper motor neuron signs
-  hyperreflexia: boolean;
-  babinski: boolean;
-  clonus: boolean;
+  hyperreflexiaLeft: boolean;
+  hyperreflexiaRight: boolean;
+  babinskiLeft: boolean;
+  babinskiRight: boolean;
+  clonusLeft: boolean;
+  clonusRight: boolean;
   spasticGait: boolean;
   fatigability: boolean;
 };
@@ -537,10 +548,22 @@ export type Severity = 'normal' | 'mild' | 'moderate' | 'marked' | 'absent';
 type SensoryForm = {
   vibSeverity: Severity;
   vibCount: number;
+  vibRightArm: boolean;
+  vibLeftArm: boolean;
+  vibRightLeg: boolean;
+  vibLeftLeg: boolean;
   ptSeverity: Severity;
   ptCount: number;
+  ptRightArm: boolean;
+  ptLeftArm: boolean;
+  ptRightLeg: boolean;
+  ptLeftLeg: boolean;
   jpSeverity: Severity;
   jpCount: number;
+  jpRightArm: boolean;
+  jpLeftArm: boolean;
+  jpRightLeg: boolean;
+  jpLeftLeg: boolean;
 };
 
 type BowelBladderForm = {
@@ -669,12 +692,14 @@ function suggestP(fs: PyramidalForm): number {
   const countLe = (n:number)=> vals.filter(v=>v<=n).length;
 
   // 0
-  if (minStrength===5 && !(fs.hyperreflexia||fs.babinski||fs.clonus||fs.spasticGait||fs.fatigability)) return 0;
-  // 1: UMN signs only
-  if (minStrength===5 && (fs.hyperreflexia||fs.babinski||fs.clonus) && !fs.spasticGait && !fs.fatigability) return 1;
-  // 2: minimal weakness or fatigability
-  if (minStrength===4 && countEq(4)<=2 && !fs.spasticGait) return 2;
-  if (fs.fatigability && minStrength>=4 && !fs.spasticGait) return 2;
+  const hasUMNSigns = fs.hyperreflexiaLeft || fs.hyperreflexiaRight || fs.babinskiLeft || fs.babinskiRight || fs.clonusLeft || fs.clonusRight;
+  if (minStrength===5 && !hasUMNSigns && !fs.spasticGait && !fs.fatigability) return 0;
+  // 1: UMN signs only (no spastic gait, no fatigability)
+  if (minStrength===5 && hasUMNSigns && !fs.spasticGait && !fs.fatigability) return 1;
+  // 2: spastic gait OR minimal weakness OR fatigability
+  if (fs.spasticGait && minStrength>=4) return 2;
+  if (minStrength===4 && countEq(4)<=2) return 2;
+  if (fs.fatigability && minStrength>=4) return 2;
   // 3: mild–moderate paresis
   if (countEq(3)>=1 && countEq(3)<=2) return 3;
   if (minStrength===4 && countEq(4)>2) return 3;
@@ -991,7 +1016,10 @@ export default function App() {
     ankleDorsiflexionR:5, ankleDorsiflexionL:5,
     anklePlantarflexionR:5, anklePlantarflexionL:5,
     // Flags
-    hyperreflexia:false, babinski:false, clonus:false, spasticGait:false, fatigability:false,
+    hyperreflexiaLeft:false, hyperreflexiaRight:false,
+    babinskiLeft:false, babinskiRight:false,
+    clonusLeft:false, clonusRight:false,
+    spasticGait:false, fatigability:false,
   });
   const [cerebellar, setCerebellar] = useState<CerebellarForm>({
     tremorOrAtaxiaOnCoordTests: false,
@@ -1007,8 +1035,11 @@ export default function App() {
   });
   const [sensory, setSensory] = useState<SensoryForm>({
     vibSeverity: 'normal', vibCount: 0,
+    vibRightArm: false, vibLeftArm: false, vibRightLeg: false, vibLeftLeg: false,
     ptSeverity: 'normal', ptCount: 0,
+    ptRightArm: false, ptLeftArm: false, ptRightLeg: false, ptLeftLeg: false,
     jpSeverity: 'normal', jpCount: 0,
+    jpRightArm: false, jpLeftArm: false, jpRightLeg: false, jpLeftLeg: false,
   });
   const [bb, setBB] = useState<BowelBladderForm>({
     mildUrge: false,
@@ -1078,8 +1109,16 @@ export default function App() {
       pyramidal.ankleDorsiflexionR, pyramidal.ankleDorsiflexionL,
       pyramidal.anklePlantarflexionR, pyramidal.anklePlantarflexionL,
     );
-    const pFlags = [pyramidal.spasticGait && 'spastic gait', pyramidal.babinski && 'Babinski', pyramidal.fatigability && 'fatigue']
-      .filter(Boolean).join(', ');
+    const babinskiSides = [];
+    if (pyramidal.babinskiLeft) babinskiSides.push('L');
+    if (pyramidal.babinskiRight) babinskiSides.push('R');
+    const babinskiText = babinskiSides.length > 0 ? `Babinski ${babinskiSides.join('+')}` : '';
+
+    const pFlags = [
+      pyramidal.spasticGait && 'spastic gait',
+      babinskiText,
+      pyramidal.fatigability && 'fatigue'
+    ].filter(Boolean).join(', ');
     const pSummary = pFlags || (minMRC < 5 ? `min grade ${minMRC}` : 'normal');
 
     // Visual summary
@@ -1188,12 +1227,25 @@ export default function App() {
     // Visual
     const leftAcuity = formatEyeAcuity(visual.leftEyeAcuity);
     const rightAcuity = formatEyeAcuity(visual.rightEyeAcuity);
-    if (visual.leftEyeAcuity === "1.0" && visual.rightEyeAcuity === "1.0" && visual.visualFieldDeficit === 'none') {
+    const bothEyes10 = visual.leftEyeAcuity === "1.0" && visual.rightEyeAcuity === "1.0";
+
+    if (bothEyes10 && visual.visualFieldDeficit === 'none') {
+      // Completely normal vision
       sections.push(t.visualExamNormal + '.');
+    } else if (bothEyes10 && visual.visualFieldDeficit !== 'none') {
+      // Normal acuity but visual field deficit
+      const vfText = visual.visualFieldDeficit === 'mild' ? t.vfMild.toLowerCase() :
+                     visual.visualFieldDeficit === 'moderate' ? t.vfModerate.toLowerCase() :
+                     t.vfMarked.toLowerCase();
+      sections.push(`${t.visualAcuity} ${t.sensNormal.toLowerCase()}, ${vfText} ${t.visualFieldDeficitText}.`);
     } else {
+      // Abnormal acuity (with or without VF deficit)
       let visualText = `${t.leftEye} ${leftAcuity}, ${t.rightEye} ${rightAcuity}`;
       if (visual.visualFieldDeficit !== 'none') {
-        visualText += `, ${visual.visualFieldDeficit} ${t.visualFieldDeficitText}`;
+        const vfText = visual.visualFieldDeficit === 'mild' ? t.vfMild.toLowerCase() :
+                       visual.visualFieldDeficit === 'moderate' ? t.vfModerate.toLowerCase() :
+                       t.vfMarked.toLowerCase();
+        visualText += `, ${vfText} ${t.visualFieldDeficitText}`;
       }
       visualText += '.';
       sections.push(visualText);
@@ -1244,9 +1296,28 @@ export default function App() {
     }
 
     const umnSigns: string[] = [];
-    if (pyramidal.hyperreflexia) umnSigns.push(t.hyperreflexia.toLowerCase());
-    if (pyramidal.babinski) umnSigns.push(t.positiveBarbinskiSign);
-    if (pyramidal.clonus) umnSigns.push(t.clonus.toLowerCase());
+
+    // Lateralized UMN signs
+    if (pyramidal.hyperreflexiaLeft || pyramidal.hyperreflexiaRight) {
+      const side = pyramidal.hyperreflexiaLeft && pyramidal.hyperreflexiaRight ? t.bilaterally :
+                   pyramidal.hyperreflexiaLeft ? t.left :
+                   t.right;
+      umnSigns.push(`${t.hyperreflexia.toLowerCase()} ${side}`);
+    }
+    if (pyramidal.babinskiLeft || pyramidal.babinskiRight) {
+      const side = pyramidal.babinskiLeft && pyramidal.babinskiRight ? t.bilaterally :
+                   pyramidal.babinskiLeft ? t.left :
+                   t.right;
+      umnSigns.push(`${t.positiveBarbinskiSign} ${side}`);
+    }
+    if (pyramidal.clonusLeft || pyramidal.clonusRight) {
+      const side = pyramidal.clonusLeft && pyramidal.clonusRight ? t.bilaterally :
+                   pyramidal.clonusLeft ? t.left :
+                   t.right;
+      umnSigns.push(`${t.clonus.toLowerCase()} ${side}`);
+    }
+
+    // Non-lateralized UMN signs
     if (pyramidal.spasticGait) umnSigns.push(t.spasticGaitText);
     if (pyramidal.fatigability) umnSigns.push(t.fatigability.toLowerCase());
 
@@ -1283,14 +1354,28 @@ export default function App() {
     // Sensory
     const sParts: string[] = [];
     const getSensText = (sev: string) => sev === 'normal' ? t.sensNormal : sev === 'mild' ? t.sensMild : sev === 'moderate' ? t.sensModerate : sev === 'marked' ? t.sensMarked : t.sensAbsent;
+
+    // Helper to get limb list
+    const getLimbList = (ra: boolean, la: boolean, rl: boolean, ll: boolean): string => {
+      const limbs: string[] = [];
+      if (ra) limbs.push(t.rightArm);
+      if (la) limbs.push(t.leftArm);
+      if (rl) limbs.push(t.rightLeg);
+      if (ll) limbs.push(t.leftLeg);
+      return joinWithAnd(limbs, language === 'en' ? 'and' : 'og');
+    };
+
     if (sensory.vibSeverity !== 'normal' && sensory.vibCount > 0) {
-      sParts.push(`${getSensText(sensory.vibSeverity)} ${t.vibrationSenseDeficit} ${sensory.vibCount} ${t.limbS}`);
+      const limbList = getLimbList(sensory.vibRightArm, sensory.vibLeftArm, sensory.vibRightLeg, sensory.vibLeftLeg);
+      sParts.push(`${getSensText(sensory.vibSeverity)} ${t.vibrationSenseDeficit} ${limbList}`);
     }
     if (sensory.ptSeverity !== 'normal' && sensory.ptCount > 0) {
-      sParts.push(`${getSensText(sensory.ptSeverity)} ${t.painTouchDeficit} ${sensory.ptCount} ${t.limbS}`);
+      const limbList = getLimbList(sensory.ptRightArm, sensory.ptLeftArm, sensory.ptRightLeg, sensory.ptLeftLeg);
+      sParts.push(`${getSensText(sensory.ptSeverity)} ${t.painTouchDeficit} ${limbList}`);
     }
     if (sensory.jpSeverity !== 'normal' && sensory.jpCount > 0) {
-      sParts.push(`${getSensText(sensory.jpSeverity)} ${t.jointPositionDeficit} ${sensory.jpCount} ${t.limbS}`);
+      const limbList = getLimbList(sensory.jpRightArm, sensory.jpLeftArm, sensory.jpRightLeg, sensory.jpLeftLeg);
+      sParts.push(`${getSensText(sensory.jpSeverity)} ${t.jointPositionDeficit} ${limbList}`);
     }
     if (sParts.length > 0) {
       sections.push(capitalize(sParts.join(', ')) + '.');
@@ -1407,7 +1492,10 @@ export default function App() {
       kneeFlexionR:5, kneeFlexionL:5,
       ankleDorsiflexionR:5, ankleDorsiflexionL:5,
       anklePlantarflexionR:5, anklePlantarflexionL:5,
-      hyperreflexia:false, babinski:false, clonus:false, spasticGait:false, fatigability:false,
+      hyperreflexiaLeft:false, hyperreflexiaRight:false,
+      babinskiLeft:false, babinskiRight:false,
+      clonusLeft:false, clonusRight:false,
+      spasticGait:false, fatigability:false,
     });
     setCerebellar({
       tremorOrAtaxiaOnCoordTests: false,
@@ -1423,8 +1511,11 @@ export default function App() {
     });
     setSensory({
       vibSeverity: 'normal', vibCount: 0,
+      vibRightArm: false, vibLeftArm: false, vibRightLeg: false, vibLeftLeg: false,
       ptSeverity: 'normal', ptCount: 0,
+      ptRightArm: false, ptLeftArm: false, ptRightLeg: false, ptLeftLeg: false,
       jpSeverity: 'normal', jpCount: 0,
+      jpRightArm: false, jpLeftArm: false, jpRightLeg: false, jpLeftLeg: false,
     });
     setBB({
       mildUrge: false,
@@ -1695,16 +1786,45 @@ export default function App() {
                   </tbody>
                 </table>
               </div>
-              <div className="pt-2 space-y-1">
+              <div className="pt-2 space-y-2">
                 <div className="text-sm font-medium">{t.findings}</div>
-                {([
-                  ["hyperreflexia","hyperreflexia"], ["babinski","babinski"], ["clonus","clonus"], ["spasticGait","spasticGait"], ["fatigability","fatigability"]
-                ] as const).map(([k,labelKey])=> (
-                  <label key={k} className="flex items-center gap-2 text-sm">
-                    <input type="checkbox" checked={(pyramidal as any)[k]} onChange={(e)=> setPyramidal(prev=> ({...prev, [k]: e.target.checked} as any))} />
-                    <span>{t[labelKey]}</span>
-                  </label>
+
+                {/* Lateralized findings with L/R checkboxes */}
+                {[
+                  {label: t.hyperreflexia, leftKey: 'hyperreflexiaLeft' as const, rightKey: 'hyperreflexiaRight' as const},
+                  {label: t.babinski, leftKey: 'babinskiLeft' as const, rightKey: 'babinskiRight' as const},
+                  {label: t.clonus, leftKey: 'clonusLeft' as const, rightKey: 'clonusRight' as const}
+                ].map(({label, leftKey, rightKey}) => (
+                  <div key={leftKey} className="flex items-center gap-2 text-sm">
+                    <span className="min-w-[100px]">{label}</span>
+                    <label className="flex items-center gap-1">
+                      <input
+                        type="checkbox"
+                        checked={pyramidal[leftKey]}
+                        onChange={(e)=> setPyramidal(prev=> ({...prev, [leftKey]: e.target.checked}))}
+                      />
+                      <span>L</span>
+                    </label>
+                    <label className="flex items-center gap-1">
+                      <input
+                        type="checkbox"
+                        checked={pyramidal[rightKey]}
+                        onChange={(e)=> setPyramidal(prev=> ({...prev, [rightKey]: e.target.checked}))}
+                      />
+                      <span>R</span>
+                    </label>
+                  </div>
                 ))}
+
+                {/* Non-lateralized findings */}
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={pyramidal.spasticGait} onChange={(e)=> setPyramidal(prev=> ({...prev, spasticGait: e.target.checked}))} />
+                  <span>{t.spasticGait}</span>
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={pyramidal.fatigability} onChange={(e)=> setPyramidal(prev=> ({...prev, fatigability: e.target.checked}))} />
+                  <span>{t.fatigability}</span>
+                </label>
               </div>
             </div>
           </FSRow>
@@ -1716,7 +1836,7 @@ export default function App() {
               <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={cerebellar.tremorOrAtaxiaOnCoordTests} onChange={(e)=>setCerebellar({ ...cerebellar, tremorOrAtaxiaOnCoordTests: e.target.checked })}/>{t.tremorAtaxiaCoord}</label>
               <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={cerebellar.rombergFallTendency} onChange={(e)=>setCerebellar({ ...cerebellar, rombergFallTendency: e.target.checked })}/>{t.rombergFall}</label>
               <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={cerebellar.lineWalkDifficulty} onChange={(e)=>setCerebellar({ ...cerebellar, lineWalkDifficulty: e.target.checked })}/>{t.tandemDifficulty}</label>
-              <label className="flex items-center gap-2 text-sm opacity-70"><input type="checkbox" checked={cerebellar.mildCerebellarSignsNoFunction} onChange={(e)=>setCerebellar({ ...cerebellar, mildCerebellarSignsNoFunction: e.target.checked })}/>{t.mildCerebellarSigns}</label>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={cerebellar.mildCerebellarSignsNoFunction} onChange={(e)=>setCerebellar({ ...cerebellar, mildCerebellarSignsNoFunction: e.target.checked })}/>{t.mildCerebellarSigns}</label>
             </div>
             <div className="space-y-2">
               <div className="text-sm font-medium">{t.functionalImpact}</div>
@@ -1742,8 +1862,40 @@ export default function App() {
                   <option value="marked">{t.sensMarked}</option>
                   <option value="absent">{t.sensAbsent}</option>
                 </select>
-                <label className="text-sm">{t.numLimbs}</label>
-                <input type="number" min={0} max={4} className="border rounded-lg p-1" value={sensory.vibCount} onChange={(e)=> setSensory({...sensory, vibCount: clamp(Number(e.target.value),0,4)})}/>
+              </div>
+              <div className="flex gap-2 flex-wrap text-sm">
+                <label className="flex items-center gap-1">
+                  <input type="checkbox" checked={sensory.vibRightArm} onChange={(e)=> {
+                    const updated = {...sensory, vibRightArm: e.target.checked};
+                    updated.vibCount = [updated.vibRightArm, updated.vibLeftArm, updated.vibRightLeg, updated.vibLeftLeg].filter(Boolean).length;
+                    setSensory(updated);
+                  }}/>
+                  <span>RA</span>
+                </label>
+                <label className="flex items-center gap-1">
+                  <input type="checkbox" checked={sensory.vibLeftArm} onChange={(e)=> {
+                    const updated = {...sensory, vibLeftArm: e.target.checked};
+                    updated.vibCount = [updated.vibRightArm, updated.vibLeftArm, updated.vibRightLeg, updated.vibLeftLeg].filter(Boolean).length;
+                    setSensory(updated);
+                  }}/>
+                  <span>LA</span>
+                </label>
+                <label className="flex items-center gap-1">
+                  <input type="checkbox" checked={sensory.vibRightLeg} onChange={(e)=> {
+                    const updated = {...sensory, vibRightLeg: e.target.checked};
+                    updated.vibCount = [updated.vibRightArm, updated.vibLeftArm, updated.vibRightLeg, updated.vibLeftLeg].filter(Boolean).length;
+                    setSensory(updated);
+                  }}/>
+                  <span>RL</span>
+                </label>
+                <label className="flex items-center gap-1">
+                  <input type="checkbox" checked={sensory.vibLeftLeg} onChange={(e)=> {
+                    const updated = {...sensory, vibLeftLeg: e.target.checked};
+                    updated.vibCount = [updated.vibRightArm, updated.vibLeftArm, updated.vibRightLeg, updated.vibLeftLeg].filter(Boolean).length;
+                    setSensory(updated);
+                  }}/>
+                  <span>LL</span>
+                </label>
               </div>
             </div>
             <div className="space-y-2">
@@ -1757,8 +1909,40 @@ export default function App() {
                   <option value="marked">{t.sensMarked}</option>
                   <option value="absent">{t.sensAbsent}</option>
                 </select>
-                <label className="text-sm">{t.numLimbs}</label>
-                <input type="number" min={0} max={4} className="border rounded-lg p-1" value={sensory.ptCount} onChange={(e)=> setSensory({...sensory, ptCount: clamp(Number(e.target.value),0,4)})}/>
+              </div>
+              <div className="flex gap-2 flex-wrap text-sm">
+                <label className="flex items-center gap-1">
+                  <input type="checkbox" checked={sensory.ptRightArm} onChange={(e)=> {
+                    const updated = {...sensory, ptRightArm: e.target.checked};
+                    updated.ptCount = [updated.ptRightArm, updated.ptLeftArm, updated.ptRightLeg, updated.ptLeftLeg].filter(Boolean).length;
+                    setSensory(updated);
+                  }}/>
+                  <span>RA</span>
+                </label>
+                <label className="flex items-center gap-1">
+                  <input type="checkbox" checked={sensory.ptLeftArm} onChange={(e)=> {
+                    const updated = {...sensory, ptLeftArm: e.target.checked};
+                    updated.ptCount = [updated.ptRightArm, updated.ptLeftArm, updated.ptRightLeg, updated.ptLeftLeg].filter(Boolean).length;
+                    setSensory(updated);
+                  }}/>
+                  <span>LA</span>
+                </label>
+                <label className="flex items-center gap-1">
+                  <input type="checkbox" checked={sensory.ptRightLeg} onChange={(e)=> {
+                    const updated = {...sensory, ptRightLeg: e.target.checked};
+                    updated.ptCount = [updated.ptRightArm, updated.ptLeftArm, updated.ptRightLeg, updated.ptLeftLeg].filter(Boolean).length;
+                    setSensory(updated);
+                  }}/>
+                  <span>RL</span>
+                </label>
+                <label className="flex items-center gap-1">
+                  <input type="checkbox" checked={sensory.ptLeftLeg} onChange={(e)=> {
+                    const updated = {...sensory, ptLeftLeg: e.target.checked};
+                    updated.ptCount = [updated.ptRightArm, updated.ptLeftArm, updated.ptRightLeg, updated.ptLeftLeg].filter(Boolean).length;
+                    setSensory(updated);
+                  }}/>
+                  <span>LL</span>
+                </label>
               </div>
             </div>
             <div className="space-y-2 md:col-span-2">
@@ -1772,8 +1956,40 @@ export default function App() {
                   <option value="marked">{t.sensMarked}</option>
                   <option value="absent">{t.sensAbsent}</option>
                 </select>
-                <label className="text-sm">{t.numLimbs}</label>
-                <input type="number" min={0} max={4} className="border rounded-lg p-1" value={sensory.jpCount} onChange={(e)=> setSensory({...sensory, jpCount: clamp(Number(e.target.value),0,4)})}/>
+              </div>
+              <div className="flex gap-2 flex-wrap text-sm">
+                <label className="flex items-center gap-1">
+                  <input type="checkbox" checked={sensory.jpRightArm} onChange={(e)=> {
+                    const updated = {...sensory, jpRightArm: e.target.checked};
+                    updated.jpCount = [updated.jpRightArm, updated.jpLeftArm, updated.jpRightLeg, updated.jpLeftLeg].filter(Boolean).length;
+                    setSensory(updated);
+                  }}/>
+                  <span>RA</span>
+                </label>
+                <label className="flex items-center gap-1">
+                  <input type="checkbox" checked={sensory.jpLeftArm} onChange={(e)=> {
+                    const updated = {...sensory, jpLeftArm: e.target.checked};
+                    updated.jpCount = [updated.jpRightArm, updated.jpLeftArm, updated.jpRightLeg, updated.jpLeftLeg].filter(Boolean).length;
+                    setSensory(updated);
+                  }}/>
+                  <span>LA</span>
+                </label>
+                <label className="flex items-center gap-1">
+                  <input type="checkbox" checked={sensory.jpRightLeg} onChange={(e)=> {
+                    const updated = {...sensory, jpRightLeg: e.target.checked};
+                    updated.jpCount = [updated.jpRightArm, updated.jpLeftArm, updated.jpRightLeg, updated.jpLeftLeg].filter(Boolean).length;
+                    setSensory(updated);
+                  }}/>
+                  <span>RL</span>
+                </label>
+                <label className="flex items-center gap-1">
+                  <input type="checkbox" checked={sensory.jpLeftLeg} onChange={(e)=> {
+                    const updated = {...sensory, jpLeftLeg: e.target.checked};
+                    updated.jpCount = [updated.jpRightArm, updated.jpLeftArm, updated.jpRightLeg, updated.jpLeftLeg].filter(Boolean).length;
+                    setSensory(updated);
+                  }}/>
+                  <span>LL</span>
+                </label>
               </div>
             </div>
           </FSRow>
