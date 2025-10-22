@@ -220,7 +220,7 @@ const translations = {
     unknown: "unknown",
   },
   no: {
-    title: "EDSS Kalkulator",
+    title: "EDSS-Kalkulator",
     reset: "Tilbakestill",
     overrideScore: "Overstyr skår",
     quickSummary: "Hurtigsammendrag",
@@ -341,8 +341,8 @@ const translations = {
     // Bowel/Bladder
     bladderSymptoms: "Blæresymptomer",
     bowelSymptoms: "Tarmsymptomer",
-    mildUrge: "Mild vannlatingstrang",
-    moderateUrge: "Moderat vannlatingstrang",
+    mildUrge: "Mild urge",
+    moderateUrge: "Moderat urge",
     rareIncontinence: "Sjelden inkontinens",
     frequentIncontinence: "Hyppig inkontinens",
     intermittentCath: "Intermitterende kateterisering",
@@ -1177,6 +1177,12 @@ export default function App() {
       return items.slice(0, -1).join(', ') + ` ${andWord} ${items[items.length - 1]}`;
     };
 
+    // Helper function to capitalize first letter of a string
+    const capitalize = (str: string): string => {
+      if (!str) return str;
+      return str.charAt(0).toUpperCase() + str.slice(1);
+    };
+
     const sections: string[] = [];
 
     // Visual
@@ -1203,7 +1209,7 @@ export default function App() {
     if (brainstem.dysarthriaLevel > 0) bsParts.push(`${t.dysarthria.toLowerCase()} (${t.level} ${brainstem.dysarthriaLevel})`);
     if (brainstem.dysphagiaLevel > 0) bsParts.push(`${t.dysphagia.toLowerCase()} (${t.level} ${brainstem.dysphagiaLevel})`);
     if (bsParts.length > 0) {
-      sections.push(bsParts.join(', ') + '.');
+      sections.push(capitalize(bsParts.join(', ')) + '.');
     } else {
       sections.push(t.brainstemExamNormal + '.');
     }
@@ -1253,7 +1259,7 @@ export default function App() {
       if (umnSigns.length > 0) allFindings.push(umnSigns.join(', '));
       sections.push(allFindings.join('; ') + '.');
     } else {
-      sections.push(`${t.normal} ${t.withFullStrength}.`.charAt(0).toUpperCase() + `${t.normal} ${t.withFullStrength}.`.slice(1));
+      sections.push(capitalize(`${t.normal} ${t.withFullStrength}.`));
     }
 
     // Cerebellar
@@ -1269,7 +1275,7 @@ export default function App() {
     if (cerebellar.lineWalkDifficulty) cParts.push(t.tandemGaitDifficulty);
     if (cerebellar.mildCerebellarSignsNoFunction) cParts.push(t.mildCerebellarSignsNoFunction);
     if (cParts.length > 0) {
-      sections.push(cParts.join(', ') + '.');
+      sections.push(capitalize(cParts.join(', ')) + '.');
     } else {
       sections.push(t.cerebellarExamNormal + '.');
     }
@@ -1287,7 +1293,7 @@ export default function App() {
       sParts.push(`${getSensText(sensory.jpSeverity)} ${t.jointPositionDeficit} ${sensory.jpCount} ${t.limbS}`);
     }
     if (sParts.length > 0) {
-      sections.push(sParts.join(', ') + '.');
+      sections.push(capitalize(sParts.join(', ')) + '.');
     } else {
       sections.push(t.sensoryExaminationNormal + '.');
     }
@@ -1296,25 +1302,25 @@ export default function App() {
     const bladderParts: string[] = [];
     const bowelParts: string[] = [];
     if (bb.lossBladderFunction) bladderParts.push(t.lossBladderFunction.toLowerCase());
-    else if (bb.permanentCatheter) bladderParts.push(t.permanentCath.toLowerCase());
-    else if (bb.frequentIncontinence) bladderParts.push(t.frequentIncontinence.toLowerCase());
-    else if (bb.intermittentCatheterization) bladderParts.push(t.intermittentCath.toLowerCase());
-    else if (bb.rareIncontinence) bladderParts.push(t.rareIncontinence.toLowerCase());
-    else if (bb.moderateUrge) bladderParts.push(t.moderateUrge.toLowerCase());
-    else if (bb.mildUrge) bladderParts.push(t.mildUrge.toLowerCase());
+    if (bb.permanentCatheter) bladderParts.push(t.permanentCath.toLowerCase());
+    if (bb.frequentIncontinence) bladderParts.push(t.frequentIncontinence.toLowerCase());
+    if (bb.intermittentCatheterization) bladderParts.push(t.intermittentCath.toLowerCase());
+    if (bb.rareIncontinence) bladderParts.push(t.rareIncontinence.toLowerCase());
+    if (bb.moderateUrge) bladderParts.push(t.moderateUrge.toLowerCase());
+    if (bb.mildUrge) bladderParts.push(t.mildUrge.toLowerCase());
 
     if (bb.lossBowelFunction) bowelParts.push(t.lossBowelFunction.toLowerCase());
-    else if (bb.bowelIncontinenceWeekly) bowelParts.push(t.bowelIncontinenceWeekly.toLowerCase());
-    else if (bb.needsHelpForBowelMovement) bowelParts.push(t.needsHelpBM.toLowerCase());
-    else if (bb.severeConstipation) bowelParts.push(t.severeConstipation.toLowerCase());
-    else if (bb.moderateConstipation) bowelParts.push(t.moderateConstipation.toLowerCase());
-    else if (bb.mildConstipation) bowelParts.push(t.mildConstipation.toLowerCase());
+    if (bb.bowelIncontinenceWeekly) bowelParts.push(t.bowelIncontinenceWeekly.toLowerCase());
+    if (bb.needsHelpForBowelMovement) bowelParts.push(t.needsHelpBM.toLowerCase());
+    if (bb.severeConstipation) bowelParts.push(t.severeConstipation.toLowerCase());
+    if (bb.moderateConstipation) bowelParts.push(t.moderateConstipation.toLowerCase());
+    if (bb.mildConstipation) bowelParts.push(t.mildConstipation.toLowerCase());
 
     if (bladderParts.length > 0 || bowelParts.length > 0) {
       const parts = [];
       if (bladderParts.length > 0) parts.push(bladderParts.join(', '));
       if (bowelParts.length > 0) parts.push(bowelParts.join(', '));
-      sections.push(parts.join('; ') + '.');
+      sections.push(capitalize(parts.join('; ')) + '.');
     } else {
       sections.push(t.bowelBladderNormal + '.');
     }
@@ -1334,17 +1340,17 @@ export default function App() {
       const parts = [];
       if (cogParts.length > 0) parts.push(cogParts.join(', '));
       if (fatigueParts.length > 0) parts.push(fatigueParts.join(', '));
-      sections.push(parts.join('; ') + '.');
+      sections.push(capitalize(parts.join('; ')) + '.');
     } else {
       sections.push(t.cognitiveNormal + '.');
     }
 
     // Ambulation
     if (assistance === 'none') {
-      sections.push(`${t.walks} ${parsedDistance ?? t.unknown} ${t.meters} ${t.withoutAssistance}.`.charAt(0).toUpperCase() + `${t.walks} ${parsedDistance ?? t.unknown} ${t.meters} ${t.withoutAssistance}.`.slice(1));
+      sections.push(capitalize(`${t.walks} ${parsedDistance ?? t.unknown} ${t.meters} ${t.withoutAssistance}.`));
     } else {
       const assistLabel = assistanceLevels.find(a => a.id === assistance)?.label || assistance;
-      sections.push(assistLabel.charAt(0).toUpperCase() + assistLabel.slice(1) + '.');
+      sections.push(capitalize(assistLabel) + '.');
     }
 
     // EDSS
