@@ -1109,17 +1109,32 @@ export default function App() {
       pyramidal.ankleDorsiflexionR, pyramidal.ankleDorsiflexionL,
       pyramidal.anklePlantarflexionR, pyramidal.anklePlantarflexionL,
     );
+
+    // UMN signs
+    const hyperreflexiaSides = [];
+    if (pyramidal.hyperreflexiaLeft) hyperreflexiaSides.push('L');
+    if (pyramidal.hyperreflexiaRight) hyperreflexiaSides.push('R');
+    const hyperreflexiaText = hyperreflexiaSides.length > 0 ? `hyperreflexia ${hyperreflexiaSides.join('+')}` : '';
+
     const babinskiSides = [];
     if (pyramidal.babinskiLeft) babinskiSides.push('L');
     if (pyramidal.babinskiRight) babinskiSides.push('R');
     const babinskiText = babinskiSides.length > 0 ? `Babinski ${babinskiSides.join('+')}` : '';
 
+    const clonusSides = [];
+    if (pyramidal.clonusLeft) clonusSides.push('L');
+    if (pyramidal.clonusRight) clonusSides.push('R');
+    const clonusText = clonusSides.length > 0 ? `clonus ${clonusSides.join('+')}` : '';
+
     const pFlags = [
-      pyramidal.spasticGait && 'spastic gait',
+      minMRC < 5 && `min grade ${minMRC}`,
+      hyperreflexiaText,
       babinskiText,
+      clonusText,
+      pyramidal.spasticGait && 'spastic gait',
       pyramidal.fatigability && 'fatigue'
     ].filter(Boolean).join(', ');
-    const pSummary = pFlags || (minMRC < 5 ? `min grade ${minMRC}` : 'normal');
+    const pSummary = pFlags || 'normal';
 
     // Visual summary
     const vCorrected = convertVisualForEDSS(fs.V);
