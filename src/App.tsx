@@ -623,7 +623,7 @@ function formatEyeAcuity(acuity: EyeAcuity): string {
   return map[acuity];
 }
 
-// Visual functional system scoring (Norwegian EDSS guidelines)
+// Visual functional system scoring
 function suggestV(fs: VisualForm): number {
   const leftNumeric = acuityToNumeric(fs.leftEyeAcuity);
   const rightNumeric = acuityToNumeric(fs.rightEyeAcuity);
@@ -750,7 +750,7 @@ function suggestS(fs: SensoryForm): number {
   // Global rule: all three modalities absent → 6
   if (sV===4 && cV>0 && sP===4 && cP>0 && sJ===4 && cJ>0) return 6;
 
-  // Per-modality scoring following Norwegian EDSS guidelines
+  // Per-modality scoring 
   const scoreVibration = () => {
     if (sV===0 || cV===0) return 0;
     // FS 5: Absent (3-4 limbs based on guidelines)
@@ -802,7 +802,7 @@ function suggestS(fs: SensoryForm): number {
 
   let score = Math.max(scoreVibration(), scorePainTouch(), scoreJointPosition());
 
-  // Hierarchy floors from Norwegian guidelines:
+  // Hierarchy floors:
   // - Any joint position affected → FS ≥2
   if (sJ>0 && cJ>0) score = Math.max(score, 2);
   // - Any modality affecting ≥3 limbs → FS ≥2
@@ -849,7 +849,7 @@ function convertVisualForEDSS(v: number): number {
   if (v >= 6) return 4; if (v === 5 || v === 4) return 3; if (v === 3 || v === 2) return 2; if (v === 1) return 1; return 0;
 }
 function convertBBForEDSS(bb: number): number {
-  // Corrected FS scores according to Norwegian guidelines
+  // Corrected FS scores
   if (bb === 6) return 5; // Loss of bladder AND bowel → 5
   if (bb === 5) return 4; // Loss of bladder OR bowel → 4
   if (bb === 4) return 3; // Permanent catheter OR weekly bowel incontinence → 3
