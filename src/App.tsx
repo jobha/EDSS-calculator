@@ -1327,7 +1327,7 @@ export default function App() {
         // Start with "Reduced strength" and then list the findings with "and" before last item
         allFindings.push(`${t.reducedStrength} ${joinWithAnd(weaknessFindings, t.and)}`);
       }
-      if (umnSigns.length > 0) allFindings.push(umnSigns.join(', '));
+      if (umnSigns.length > 0) allFindings.push(capitalize(umnSigns.join(', ')));
       sections.push(allFindings.join('; ') + '.');
     } else {
       sections.push(capitalize(`${t.normal} ${t.withFullStrength}.`));
