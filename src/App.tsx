@@ -1382,15 +1382,27 @@ export default function App() {
 
     if (sensory.vibSeverity !== 'normal' && sensory.vibCount > 0) {
       const limbList = getLimbList(sensory.vibRightArm, sensory.vibLeftArm, sensory.vibRightLeg, sensory.vibLeftLeg);
-      sParts.push(`${getSensText(sensory.vibSeverity)} ${t.vibrationSenseDeficit} ${limbList}`);
+      if (sensory.vibSeverity === 'absent') {
+        sParts.push(`${getSensText(sensory.vibSeverity).toLowerCase()} ${t.vibration.toLowerCase()} ${limbList}`);
+      } else {
+        sParts.push(`${getSensText(sensory.vibSeverity)} ${t.vibrationSenseDeficit} ${limbList}`);
+      }
     }
     if (sensory.ptSeverity !== 'normal' && sensory.ptCount > 0) {
       const limbList = getLimbList(sensory.ptRightArm, sensory.ptLeftArm, sensory.ptRightLeg, sensory.ptLeftLeg);
-      sParts.push(`${getSensText(sensory.ptSeverity)} ${t.painTouchDeficit} ${limbList}`);
+      if (sensory.ptSeverity === 'absent') {
+        sParts.push(`${getSensText(sensory.ptSeverity).toLowerCase()} ${t.painTouch.toLowerCase()} ${limbList}`);
+      } else {
+        sParts.push(`${getSensText(sensory.ptSeverity)} ${t.painTouchDeficit} ${limbList}`);
+      }
     }
     if (sensory.jpSeverity !== 'normal' && sensory.jpCount > 0) {
       const limbList = getLimbList(sensory.jpRightArm, sensory.jpLeftArm, sensory.jpRightLeg, sensory.jpLeftLeg);
-      sParts.push(`${getSensText(sensory.jpSeverity)} ${t.jointPositionDeficit} ${limbList}`);
+      if (sensory.jpSeverity === 'absent') {
+        sParts.push(`${getSensText(sensory.jpSeverity).toLowerCase()} ${t.jointPosition.toLowerCase()} ${limbList}`);
+      } else {
+        sParts.push(`${getSensText(sensory.jpSeverity)} ${t.jointPositionDeficit} ${limbList}`);
+      }
     }
     if (sParts.length > 0) {
       sections.push(capitalize(sParts.join(', ')) + '.');
