@@ -1,0 +1,5 @@
+/* src/index.css */
+@import "tailwindcss";
+
+/* (optional) your own styles can go here afterwards */
+/* avoid @apply for now until it compiles once */
