@@ -1,35 +1,431 @@
 import React, { useEffect, useMemo, useState } from "react";
 
 // ============================================================================
+// TRANSLATIONS
+// ============================================================================
+type Language = 'en' | 'no';
+
+const translations = {
+  en: {
+    title: "EDSS Calculator",
+    version: "Version 0.1",
+    reset: "Reset",
+    overrideScore: "Override score",
+    quickSummary: "Quick Summary",
+    copySummary: "Copy summary",
+    copied: "Copied ✓",
+    fullExamText: "Full Examination Text",
+    copyExamText: "Copy examination text",
+    ambulation: "Ambulation",
+    assistanceReq: "Assistance requirement",
+    maxWalkDist: "Max walking distance without aid/rest (meters)",
+    thresholds: "Thresholds: ≥500m (EDSS based on FS), 300-499m (4.5), 200-299m (5.0), 100-199m (5.5), <100m (6.0)",
+    rawFS: "Raw FS",
+    correctedFS: "Corrected FS (for EDSS)",
+    // Visual
+    leftEyeAcuity: "Left eye acuity",
+    rightEyeAcuity: "Right eye acuity",
+    visualFieldDeficit: "Visual field deficit",
+    vfNone: "None",
+    vfMild: "Mild (only on testing)",
+    vfModerate: "Moderate (patient notices deficit or complete hemianopia)",
+    vfMarked: "Marked (complete hemianopia)",
+    // Brainstem
+    eyeMotility: "Eye motility",
+    eyeMotility0: "0 - Normal",
+    eyeMotility1: "1 - Subtle findings, no symptoms",
+    eyeMotility2: "2 - Subtle findings (patient aware) or clear incomplete paresis (patient unaware)",
+    eyeMotility3: "3 - Clear incomplete paresis (patient aware) or complete loss in one direction",
+    eyeMotility4: "4 - Complete loss in multiple directions",
+    nystagmus: "Nystagmus",
+    nystagmus0: "0 - None",
+    nystagmus1: "1 - Mild gaze-evoked nystagmus",
+    nystagmus2: "2 - Clear gaze-evoked nystagmus",
+    nystagmus3: "3 - Spontaneous nystagmus or complete INO",
+    facialSensibility: "Facial sensibility",
+    facialSensibility0: "0 - Normal",
+    facialSensibility1: "1 - Signs only",
+    facialSensibility2: "2 - Decreased sensation",
+    facialSensibility3: "3 - Decreased discrimination or trigeminal neuralgia >24h",
+    facialSensibility4: "4 - Complete sensory loss (uni/bilateral)",
+    facialSymmetry: "Facial symmetry",
+    facialSymmetry0: "0 - Normal",
+    facialSymmetry1: "1 - Signs only",
+    facialSymmetry2: "2 - Decreased facial strength",
+    facialSymmetry3: "3 - Incomplete facial palsy (eye patch at night or drooling)",
+    facialSymmetry4: "4 - Complete uni/bilateral facial palsy",
+    hearing: "Hearing",
+    hearing0: "0 - Normal",
+    hearing1: "1 - Reduced hearing (finger rub) or Weber lateralization, no symptoms",
+    hearing2: "2 - Findings with patient awareness",
+    hearing3: "3 - Cannot hear finger rub or difficulty with whisper",
+    hearing4: "4 - Cannot hear whisper",
+    dysarthria: "Dysarthria",
+    dysarthria0: "0 - Normal",
+    dysarthria1: "1 - Slurred speech (patient aware)",
+    dysarthria2: "2 - Difficult to understand due to slurring",
+    dysarthria3: "3 - Incomprehensible speech",
+    dysarthria4: "4 - Unable to speak",
+    dysphagia: "Dysphagia",
+    dysphagia0: "0 - Normal",
+    dysphagia1: "1 - Difficulty swallowing liquids",
+    dysphagia2: "2 - Difficulty swallowing liquids and solids",
+    dysphagia3: "3 - Marked difficulty (dependent on pureed food)",
+    dysphagia4: "4 - Unable to swallow",
+    // Pyramidal
+    upperLimbsMRC: "Upper limbs (muscle strength grade 0–5)",
+    lowerLimbsMRC: "Lower limbs (muscle strength grade 0–5)",
+    movement: "Movement",
+    findings: "Findings",
+    shoulderAbduction: "Shoulder abduction",
+    shoulderExternalRotation: "Shoulder external rotation",
+    elbowFlexion: "Elbow flexion",
+    elbowExtension: "Elbow extension",
+    wristExtension: "Wrist extension",
+    fingerAbduction: "Finger abduction",
+    hipFlexion: "Hip flexion",
+    hipAbduction: "Hip abduction",
+    kneeExtension: "Knee extension",
+    kneeFlexion: "Knee flexion",
+    ankleDorsiflexion: "Ankle dorsiflexion",
+    anklePlantarflexion: "Ankle plantarflexion",
+    hyperreflexia: "Hyperreflexia",
+    babinski: "Babinski",
+    clonus: "Clonus",
+    spasticGait: "Spastic gait",
+    fatigability: "Fatigability",
+    // Cerebellar
+    minimalImpact: "Minimal impact",
+    functionalImpact: "Functional impact / severe",
+    tremorAtaxiaCoord: "Tremor/ataxia on coordination tests",
+    rombergFall: "Fall tendency on Romberg",
+    tandemDifficulty: "Difficulty on tandem/line walk",
+    mildCerebellarSigns: "Mild signs without functional loss",
+    limbAtaxiaFunction: "Moderate limb ataxia affecting function",
+    gaitAtaxia: "Gait ataxia",
+    truncalAtaxia: "Truncal ataxia (eyes open)",
+    ataxia34Limbs: "Pronounced ataxia in 3–4 limbs",
+    needsAssistanceAtaxia: "Needs assistance due to ataxia",
+    unableCoordMovements: "Unable to perform coordinated movements due to ataxia",
+    // Sensory
+    vibration: "Vibration",
+    painTouch: "Pain / Touch",
+    jointPosition: "Joint Position",
+    severity: "Severity",
+    numLimbs: "Number of limbs (0–4)",
+    sensNormal: "normal",
+    sensMild: "mild",
+    sensModerate: "moderate",
+    sensMarked: "marked",
+    sensAbsent: "absent",
+    // Bowel/Bladder
+    bladderSymptoms: "Bladder symptoms",
+    bowelSymptoms: "Bowel symptoms",
+    mildUrge: "Mild urge",
+    moderateUrge: "Moderate urge",
+    rareIncontinence: "Rare incontinence",
+    frequentIncontinence: "Frequent incontinence",
+    intermittentCath: "Intermittent catheterization",
+    permanentCath: "Permanent catheter",
+    lossBladderFunction: "Loss of bladder function",
+    mildConstipation: "Mild constipation",
+    moderateConstipation: "Moderate constipation",
+    severeConstipation: "Severe constipation",
+    needsHelpBM: "Needs help for bowel movement",
+    bowelIncontinenceWeekly: "Bowel incontinence weekly",
+    lossBowelFunction: "Loss of bowel function",
+    // Mental
+    fatigue: "Fatigue",
+    cognitiveFunction: "Cognitive function",
+    mildFatigue: "Mild fatigue (affects <50% of daily activity or work)",
+    moderateSevereFatigue: "Moderate to severe fatigue (affects ≥50% of daily activity or work)",
+    lightlyReducedCog: "Lightly reduced cognition",
+    moderatelyReducedCog: "Moderately reduced cognition (reduced test performance, oriented 3/3)",
+    markedlyReducedCog: "Markedly reduced cognition (not oriented for 1-2 of 3 dimensions)",
+    pronouncedDementia: "Pronounced dementia (confusion, totally disoriented)",
+    // Assistance levels
+    noAssistance: "No assistance required",
+    uniAid50Plus: "Unilateral aid (cane/crutch), walks ≥50 m",
+    uniAidUnder50: "Unilateral aid (cane/crutch), walks <50 m",
+    biAid120Plus: "Bilateral aid (two canes/crutches/walker), walks ≥120 m",
+    biAid5to120: "Bilateral aid, walks ≥5 m but <120 m",
+    biAidUnder5: "Bilateral aid, walks <5 m",
+    wheelSelf: "Wheelchair; self-propels and transfers independently",
+    wheelSomeHelp: "Wheelchair; needs some help with transfers, self-propels",
+    wheelDependent: "Wheelchair; completely dependent for transfers and propulsion",
+    bedChairArmsOk: "Bed/chair; arms effective; mostly self-care",
+    bedChairLimitedArms: "Bed-bound; limited arm use; some self-care",
+    helpless: "Helpless; cannot communicate/eat effectively",
+    totalCare: "Totally helpless; total care incl. feeding",
+    // Examination narrative text
+    visualAcuity: "Visual acuity",
+    leftEye: "Left eye",
+    rightEye: "Right eye",
+    noVisualFieldDeficits: "No visual field deficits",
+    visualFieldDeficitText: "visual field deficit",
+    brainstemExamNormal: "Brainstem examination normal",
+    brainstem: "Brainstem",
+    eyeMotilityImpairment: "eye motility impairment",
+    level: "level",
+    facialSensibilityDeficit: "facial sensibility deficit",
+    facialAsymmetry: "facial asymmetry",
+    hearingImpairment: "hearing impairment",
+    motorExamination: "Motor examination",
+    normal: "normal",
+    withFullStrength: "with full strength (grade 5/5) throughout and no upper motor neuron signs",
+    bilaterally: "bilaterally",
+    right: "right",
+    left: "left",
+    positiveBarbinskiSign: "positive Babinski sign",
+    spasticGaitText: "spastic gait",
+    cerebellarExamNormal: "Cerebellar examination normal",
+    cerebellar: "Cerebellar",
+    unableCoordMovementsText: "unable to perform coordinated movements",
+    ataxiaIn34Limbs: "ataxia in 3-4 limbs",
+    needsAssistanceAtaxiaText: "needs assistance due to ataxia",
+    limbAtaxiaAffectingFunction: "limb ataxia affecting function",
+    gaitAtaxiaText: "gait ataxia",
+    truncalAtaxiaText: "truncal ataxia",
+    tremorAtaxiaCoordTesting: "tremor/ataxia on coordination testing",
+    fallTendencyRomberg: "fall tendency on Romberg",
+    tandemGaitDifficulty: "tandem gait difficulty",
+    mildCerebellarSignsNoFunction: "mild cerebellar signs without functional impact",
+    sensoryExaminationNormal: "Sensory examination normal",
+    sensoryExamination: "Sensory examination",
+    vibrationSenseDeficit: "vibration sense deficit in",
+    painTouchDeficit: "pain/touch deficit in",
+    jointPositionDeficit: "joint position sense deficit in",
+    limbS: "limb(s)",
+    bowelBladderNormal: "Bowel and bladder function normal",
+    bladderFunction: "Bladder",
+    bowelFunction: "Bowel",
+    cognitiveNormal: "Cognitive function and mood normal",
+    cognitive: "Cognitive",
+    ambulationText: "Ambulation",
+    walks: "walks",
+    meters: "meters",
+    withoutAssistance: "without assistance",
+    unknown: "unknown",
+  },
+  no: {
+    title: "EDSS Kalkulator",
+    version: "Versjon 0.1",
+    reset: "Tilbakestill",
+    overrideScore: "Overstyr skår",
+    quickSummary: "Hurtigsammendrag",
+    copySummary: "Kopier sammendrag",
+    copied: "Kopiert ✓",
+    fullExamText: "Fullstendig undersøkelsestekst",
+    copyExamText: "Kopier undersøkelsestekst",
+    ambulation: "Gange",
+    assistanceReq: "Hjelpebehov",
+    maxWalkDist: "Maksimal gangdistanse uten hjelpemiddel/hvile (meter)",
+    thresholds: "Terskler: ≥500m (EDSS basert på FS), 300-499m (4.5), 200-299m (5.0), 100-199m (5.5), <100m (6.0)",
+    rawFS: "Rå FS",
+    correctedFS: "Korrigert FS (for EDSS)",
+    // Visual
+    leftEyeAcuity: "Venstre øye synsstyrke",
+    rightEyeAcuity: "Høyre øye synsstyrke",
+    visualFieldDeficit: "Synsfeltutfall",
+    vfNone: "Ingen",
+    vfMild: "Mild (kun ved testing)",
+    vfModerate: "Moderat (pasient merker utfall / komplett hemianopsi)",
+    vfMarked: "Markert (komplett hemianopsi)",
+    // Brainstem
+    eyeMotility: "Øyemotilitet",
+    eyeMotility0: "0 - Normal",
+    eyeMotility1: "1 - Subtile funn på øyemotilitetsforstyrrelse, uten at pasient selv bemerker plager",
+    eyeMotility2: "2 - Subtile funn som pasient er kjent med eller tydelige inkomplette øyemuskelpareser som pasient ikke er kjent med",
+    eyeMotility3: "3 - Tydelig inkomplette øyemuskelpareser som pasient er kjent med eller komplett tap av bevegelse i en blikkretning",
+    eyeMotility4: "4 - Komplett tap av bevegelse i flere retninger",
+    nystagmus: "Nystagmus",
+    nystagmus0: "0 - Ingen",
+    nystagmus1: "1 - Mild blikkretningsnystagmus",
+    nystagmus2: "2 - Tydelig blikkretningsnystagmus",
+    nystagmus3: "3 - Spontannystagmus eller komplett internukleær oftalmoplegi",
+    facialSensibility: "Ansiktssensibilitet",
+    facialSensibility0: "0 - Normal",
+    facialSensibility1: "1 - Kun tegn",
+    facialSensibility2: "2 - Nedsatt følelse",
+    facialSensibility3: "3 - Nedsatt diskriminering mellom stikk og lett berøring i forsyningsområdet til minst en trigeminusgren eller trigeminusnevralgi > 24 timer",
+    facialSensibility4: "4 - Bortfall av sensibilitet for stikk/lett berøring i hele nervens utbredelse uni- eller bilateralt",
+    facialSymmetry: "Ansiktssymmetri",
+    facialSymmetry0: "0 - Normal",
+    facialSymmetry1: "1 - Kun tegn",
+    facialSymmetry2: "2 - Nedsatt kraft i ansiktsmusklatur",
+    facialSymmetry3: "3 - Inkomplett ansiktslammelse (som resulterer i bruk av øyelapp på natt eller sikling)",
+    facialSymmetry4: "4 - Komplett uni- eller bilateral ansiktslammelse",
+    hearing: "Hørsel",
+    hearing0: "0 - Normal",
+    hearing1: "1 - Redusert hørsel for fingergnissing eller lateralisering på Weber uten at pasient selv bemerker plager",
+    hearing2: "2 - Funn hvor pasient selv bemerker problem",
+    hearing3: "3 - Hører ikke fingergniss eller vansker med å oppfatte hvisking",
+    hearing4: "4 - Hører ikke hvisking",
+    dysarthria: "Dysartri",
+    dysarthria0: "0 - Normal",
+    dysarthria1: "1 - Snøvlete tale som pasient er klar over",
+    dysarthria2: "2 - Vanskelig forståelig tale grunnet snøvling",
+    dysarthria3: "3 - Ubegripelig tale",
+    dysarthria4: "4 - Manglende evne til tale",
+    dysphagia: "Dysfagi",
+    dysphagia0: "0 - Normal",
+    dysphagia1: "1 - Vansker med å svelge væske",
+    dysphagia2: "2 - Vansker med å svelge væske og fast føde",
+    dysphagia3: "3 - Markerte vansker med svelging (avhengig av most mat)",
+    dysphagia4: "4 - Manglende evne til svelging",
+    // Pyramidal
+    upperLimbsMRC: "Overekstremiteter (Muskelkraft grad 0–5)",
+    lowerLimbsMRC: "Underekstremiteter (Muskelkraft grad 0–5)",
+    movement: "Bevegelse",
+    findings: "Funn",
+    shoulderAbduction: "Skulder abduksjon",
+    shoulderExternalRotation: "Skulder utadrotasjon",
+    elbowFlexion: "Albue fleksjon",
+    elbowExtension: "Albue ekstensjon",
+    wristExtension: "Håndledd ekstensjon",
+    fingerAbduction: "Finger abduksjon",
+    hipFlexion: "Hofte fleksjon",
+    hipAbduction: "Hofte abduksjon",
+    kneeExtension: "Kne ekstensjon",
+    kneeFlexion: "Kne fleksjon",
+    ankleDorsiflexion: "Ankel dorsalfleksjon",
+    anklePlantarflexion: "Ankel plantarfleksjon",
+    hyperreflexia: "Hyperrefleksi",
+    babinski: "Babinski",
+    clonus: "Klonus",
+    spasticGait: "Spastisk gange",
+    fatigability: "Utmattbarhet",
+    // Cerebellar
+    minimalImpact: "Minimal påvirkning",
+    functionalImpact: "Funksjonsnedsettelse / alvorlig",
+    tremorAtaxiaCoord: "Tremor/ataksi på koordinasjonstester",
+    rombergFall: "Falltendens ved Romberg",
+    tandemDifficulty: "Vansker med tandemgang/linjegang",
+    mildCerebellarSigns: "Milde cerebellære tegn uten funksjonsnedsettelse",
+    limbAtaxiaFunction: "Moderat ekstremitetsataksi som påvirker funksjon",
+    gaitAtaxia: "Gangata ksi",
+    truncalAtaxia: "Trunkal ataksi (øyne åpne)",
+    ataxia34Limbs: "Uttalt ataksi i 3–4 ekstremiteter",
+    needsAssistanceAtaxia: "Trenger hjelp på grunn av ataksi",
+    unableCoordMovements: "Ute av stand til å utføre koordinerte bevegelser på grunn av ataksi",
+    // Sensory
+    vibration: "Vibrasjonssans",
+    painTouch: "Smerte / Berøring",
+    jointPosition: "Leddsans",
+    severity: "Grad",
+    numLimbs: "Antall ekstremiteter (0–4)",
+    sensNormal: "normal",
+    sensMild: "mild",
+    sensModerate: "moderat",
+    sensMarked: "markert",
+    sensAbsent: "fraværende",
+    // Bowel/Bladder
+    bladderSymptoms: "Blæresymptomer",
+    bowelSymptoms: "Tarmsymptomer",
+    mildUrge: "Mild vannlatingstrang",
+    moderateUrge: "Moderat vannlatingstrang",
+    rareIncontinence: "Sjelden inkontinens",
+    frequentIncontinence: "Hyppig inkontinens",
+    intermittentCath: "Intermitterende kateterisering",
+    permanentCath: "Fast kateter",
+    lossBladderFunction: "Tap av blærefunksjon",
+    mildConstipation: "Mild forstoppelse",
+    moderateConstipation: "Moderat forstoppelse",
+    severeConstipation: "Alvorlig forstoppelse",
+    needsHelpBM: "Trenger hjelp til avføring",
+    bowelIncontinenceWeekly: "Tarminkontinens ukentlig",
+    lossBowelFunction: "Tap av tarmfunksjon",
+    // Mental
+    fatigue: "Utmattelse",
+    cognitiveFunction: "Kognitiv funksjon",
+    mildFatigue: "Mild utmattelse (påvirker <50% av daglig aktivitet eller arbeid)",
+    moderateSevereFatigue: "Moderat til alvorlig utmattelse (påvirker ≥50% av daglig aktivitet eller arbeid)",
+    lightlyReducedCog: "Lett redusert kognisjon",
+    moderatelyReducedCog: "Moderat redusert kognisjon (redusert testytelse, orientert 3/3)",
+    markedlyReducedCog: "Markert redusert kognisjon (ikke orientert for 1-2 av 3 dimensjoner)",
+    pronouncedDementia: "Uttalt demens (forvirring, totalt desorientert)",
+    // Assistance levels
+    noAssistance: "Ingen hjelpemidler nødvendig",
+    uniAid50Plus: "Ensidig ganghjelpemiddel (stokk/krykke), går ≥50 m",
+    uniAidUnder50: "Ensidig ganghjelpemiddel (stokk/krykke), går <50 m",
+    biAid120Plus: "Bilaterale ganghjelpemidler (to stokker/krykker/rullator), går ≥120 m",
+    biAid5to120: "Bilaterale ganghjelpemidler, går ≥5 m men <120 m",
+    biAidUnder5: "Bilaterale ganghjelpemidler, går <5 m",
+    wheelSelf: "Rullestol; kjører og forflytter seg til og fra, samt opp av og ned i rullestol selv",
+    wheelSomeHelp: "Rullestol; behov for noe hjelp ved forflytning til og fra, samt opp av og ned i rullestol, men kjører den manuelle rullestolen selv",
+    wheelDependent: "Rullestol; helt hjelpetrengende angående rullestol, samt å kjøre den",
+    bedChairArmsOk: "Seng/stol; armer fungerer; mesteparten selvhjulpen",
+    bedChairLimitedArms: "Sengeliggende; begrenset armbruk; noe selvhjelp",
+    helpless: "Hjelpeløs; kan ikke kommunisere/spise effektivt",
+    totalCare: "Totalt hjelpeløs; total omsorg inkl. mating",
+    // Examination narrative text
+    visualAcuity: "Synsstyrke",
+    leftEye: "Venstre øye",
+    rightEye: "Høyre øye",
+    noVisualFieldDeficits: "Ingen synsfeltutfall",
+    visualFieldDeficitText: "synsfeltutfall",
+    brainstemExamNormal: "Hjernestammeundersøkelse normal",
+    brainstem: "Hjernestamme",
+    eyeMotilityImpairment: "øyemotilitetssvikt",
+    level: "nivå",
+    facialSensibilityDeficit: "ansiktssensibilitetsutfall",
+    facialAsymmetry: "ansiktsasymmetri",
+    hearingImpairment: "hørselssvekkelse",
+    motorExamination: "Motorisk undersøkelse",
+    normal: "normal",
+    withFullStrength: "med full styrke (grad 5/5) gjennomgående og ingen øvre motornevronfunn",
+    bilaterally: "bilateralt",
+    right: "høyre",
+    left: "venstre",
+    positiveBarbinskiSign: "positiv Babinski-refleks",
+    spasticGaitText: "spastisk gange",
+    cerebellarExamNormal: "Cerebellar undersøkelse normal",
+    cerebellar: "Cerebellar",
+    unableCoordMovementsText: "ute av stand til å utføre koordinerte bevegelser",
+    ataxiaIn34Limbs: "ataksi i 3-4 ekstremiteter",
+    needsAssistanceAtaxiaText: "trenger hjelp på grunn av ataksi",
+    limbAtaxiaAffectingFunction: "ekstremitetsataksi som påvirker funksjon",
+    gaitAtaxiaText: "gangataksi",
+    truncalAtaxiaText: "trunkal ataksi",
+    tremorAtaxiaCoordTesting: "tremor/ataksi ved koordinasjonstesting",
+    fallTendencyRomberg: "falltendens ved Romberg",
+    tandemGaitDifficulty: "vansker med tandemgang",
+    mildCerebellarSignsNoFunction: "milde cerebellære tegn uten funksjonsnedsettelse",
+    sensoryExaminationNormal: "Sensorisk undersøkelse normal",
+    sensoryExamination: "Sensorisk undersøkelse",
+    vibrationSenseDeficit: "vibrasjonssansutfall i",
+    painTouchDeficit: "smerte/berøringsutfall i",
+    jointPositionDeficit: "leddsansutfall i",
+    limbS: "ekstremitet(er)",
+    bowelBladderNormal: "Tarm- og blærefunksjon normal",
+    bladderFunction: "Blære",
+    bowelFunction: "Tarm",
+    cognitiveNormal: "Kognitiv funksjon og stemningsleie normalt",
+    cognitive: "Kognitiv",
+    ambulationText: "Gange",
+    walks: "går",
+    meters: "meter",
+    withoutAssistance: "uten hjelpemidler",
+    unknown: "ukjent",
+  }
+};
+
+// ============================================================================
 // CONSTANTS & CONFIGURATION
 // ============================================================================
 const fsMeta: Record<string, { label: string; max: number; help: string }> = {
   V: { label: "V (Visual)", max: 6, help: "Acuity/scotoma; 0-6" },
   BS: { label: "BS (Brainstem)", max: 5, help: "INO, dysarthria, nystagmus; 0-5" },
-  P: { label: "P (Pyramidal)", max: 6, help: "MRC strength + UMN/gait; 0-6" },
+  P: { label: "P (Pyramidal)", max: 6, help: "Muscle strength + UMN/gait; 0-6" },
   C: { label: "C (Cerebellar)", max: 5, help: "FNF/HKS, DDK, truncal; 0-5" },
   S: { label: "S (Sensory)", max: 6, help: "Pinprick, vibration, proprioception; 0-6" },
   BB: { label: "BB (Bowel/Bladder)", max: 6, help: "Urgency, incontinence, catheter; 0-6" },
   M: { label: "M (Cerebral)", max: 5, help: "Cognition/mood; 0-5" },
 };
 
-const assistanceLevels = [
-  { id: "none", label: "No assistance required" },
-  { id: "uni_50_plus", label: "Unilateral aid (cane/crutch), walks ≥50 m" },
-  { id: "uni_under_50", label: "Unilateral aid (cane/crutch), walks <50 m" },
-  { id: "bi_120_plus", label: "Bilateral aid (two canes/crutches/walker), walks ≥120 m" },
-  { id: "bi_5_to_120", label: "Bilateral aid, walks ≥5 m but <120 m" },
-  { id: "bi_under_5", label: "Bilateral aid, walks <5 m" },
-  { id: "wheel_self", label: "Wheelchair; self-propels and transfers independently" },
-  { id: "wheel_some_help", label: "Wheelchair; needs some help with transfers, self-propels" },
-  { id: "wheel_dependent", label: "Wheelchair; completely dependent for transfers and propulsion" },
-  { id: "bed_chair_arms_ok", label: "Bed/chair; arms effective; mostly self-care" },
-  { id: "bed_chair_limited_arms", label: "Bed-bound; limited arm use; some self-care" },
-  { id: "helpless", label: "Helpless; cannot communicate/eat effectively" },
-  { id: "total_care", label: "Totally helpless; total care incl. feeding" },
-] as const;
+const assistanceLevelIds = ["none", "uni_50_plus", "uni_under_50", "bi_120_plus", "bi_5_to_120", "bi_under_5", "wheel_self", "wheel_some_help", "wheel_dependent", "bed_chair_arms_ok", "bed_chair_limited_arms", "helpless", "total_care"] as const;
 
-type AssistanceId = typeof assistanceLevels[number]["id"];
+type AssistanceId = typeof assistanceLevelIds[number];
 
 // Utility functions
 function clamp(n: number, lo: number, hi: number) {
@@ -65,7 +461,7 @@ type BrainstemForm = {
 };
 
 type PyramidalForm = {
-  // Upper limb MRC scores
+  // Upper limb muscle strength scores
   shoulderAbductionR: number;
   shoulderAbductionL: number;
   shoulderExternalRotationR: number;
@@ -78,7 +474,7 @@ type PyramidalForm = {
   wristExtensionL: number;
   fingerAbductionR: number;
   fingerAbductionL: number;
-  // Lower limb MRC scores
+  // Lower limb muscle strength scores
   hipFlexionR: number;
   hipFlexionL: number;
   hipAbductionR: number;
@@ -516,6 +912,26 @@ function computeEDSSFromInputs(fs: Record<string, number>, assistance: Assistanc
 
 // ---------- Component ----------
 export default function App() {
+  const [language, setLanguage] = useState<Language>("en");
+  const t = translations[language];
+
+  // Translated assistance levels
+  const assistanceLevels = [
+    { id: "none" as const, label: t.noAssistance },
+    { id: "uni_50_plus" as const, label: t.uniAid50Plus },
+    { id: "uni_under_50" as const, label: t.uniAidUnder50 },
+    { id: "bi_120_plus" as const, label: t.biAid120Plus },
+    { id: "bi_5_to_120" as const, label: t.biAid5to120 },
+    { id: "bi_under_5" as const, label: t.biAidUnder5 },
+    { id: "wheel_self" as const, label: t.wheelSelf },
+    { id: "wheel_some_help" as const, label: t.wheelSomeHelp },
+    { id: "wheel_dependent" as const, label: t.wheelDependent },
+    { id: "bed_chair_arms_ok" as const, label: t.bedChairArmsOk },
+    { id: "bed_chair_limited_arms" as const, label: t.bedChairLimitedArms },
+    { id: "helpless" as const, label: t.helpless },
+    { id: "total_care" as const, label: t.totalCare },
+  ];
+
   const [assistance, setAssistance] = useState<AssistanceId>("none");
   const [distance, setDistance] = useState<string>("500");
 
@@ -640,7 +1056,7 @@ export default function App() {
     );
     const pFlags = [pyramidal.spasticGait && 'spastic gait', pyramidal.babinski && 'Babinski', pyramidal.fatigability && 'fatigue']
       .filter(Boolean).join(', ');
-    const pSummary = pFlags || (minMRC < 5 ? `min MRC ${minMRC}` : 'normal');
+    const pSummary = pFlags || (minMRC < 5 ? `min grade ${minMRC}` : 'normal');
 
     // Visual summary
     const vCorrected = convertVisualForEDSS(fs.V);
@@ -734,26 +1150,26 @@ export default function App() {
     // Visual
     const leftAcuity = formatEyeAcuity(visual.leftEyeAcuity);
     const rightAcuity = formatEyeAcuity(visual.rightEyeAcuity);
-    let visualText = `Visual acuity: Left eye ${leftAcuity}, right eye ${rightAcuity}.`;
+    let visualText = `${t.visualAcuity}: ${t.leftEye} ${leftAcuity}, ${t.rightEye} ${rightAcuity}.`;
     if (visual.visualFieldDeficit !== 'none') {
-      visualText += ` ${visual.visualFieldDeficit.charAt(0).toUpperCase() + visual.visualFieldDeficit.slice(1)} visual field deficit.`;
+      visualText += ` ${visual.visualFieldDeficit.charAt(0).toUpperCase() + visual.visualFieldDeficit.slice(1)} ${t.visualFieldDeficitText}.`;
     } else {
-      visualText += ' No visual field deficits.';
+      visualText += ` ${t.noVisualFieldDeficits}.`;
     }
     sections.push(visualText);
 
     // Brainstem
     const bsParts: string[] = [];
-    if (brainstem.eyeMotilityLevel > 0) bsParts.push(`eye motility impairment (level ${brainstem.eyeMotilityLevel})`);
-    if (brainstem.nystagmusLevel > 0) bsParts.push(`nystagmus (level ${brainstem.nystagmusLevel})`);
-    if (brainstem.facialSensibilityLevel > 0) bsParts.push(`facial sensibility deficit (level ${brainstem.facialSensibilityLevel})`);
-    if (brainstem.facialSymmetryLevel > 0) bsParts.push(`facial asymmetry (level ${brainstem.facialSymmetryLevel})`);
-    if (brainstem.hearingLevel > 0) bsParts.push(`hearing impairment (level ${brainstem.hearingLevel})`);
-    if (brainstem.dysarthriaLevel > 0) bsParts.push(`dysarthria (level ${brainstem.dysarthriaLevel})`);
-    if (brainstem.dysphagiaLevel > 0) bsParts.push(`dysphagia (level ${brainstem.dysphagiaLevel})`);
+    if (brainstem.eyeMotilityLevel > 0) bsParts.push(`${t.eyeMotilityImpairment} (${t.level} ${brainstem.eyeMotilityLevel})`);
+    if (brainstem.nystagmusLevel > 0) bsParts.push(`${t.nystagmus.toLowerCase()} (${t.level} ${brainstem.nystagmusLevel})`);
+    if (brainstem.facialSensibilityLevel > 0) bsParts.push(`${t.facialSensibilityDeficit} (${t.level} ${brainstem.facialSensibilityLevel})`);
+    if (brainstem.facialSymmetryLevel > 0) bsParts.push(`${t.facialAsymmetry} (${t.level} ${brainstem.facialSymmetryLevel})`);
+    if (brainstem.hearingLevel > 0) bsParts.push(`${t.hearingImpairment} (${t.level} ${brainstem.hearingLevel})`);
+    if (brainstem.dysarthriaLevel > 0) bsParts.push(`${t.dysarthria.toLowerCase()} (${t.level} ${brainstem.dysarthriaLevel})`);
+    if (brainstem.dysphagiaLevel > 0) bsParts.push(`${t.dysphagia.toLowerCase()} (${t.level} ${brainstem.dysphagiaLevel})`);
     const bsText = bsParts.length > 0
-      ? `Brainstem: ${bsParts.join(', ')}.`
-      : 'Brainstem examination normal.';
+      ? `${t.brainstem}: ${bsParts.join(', ')}.`
+      : `${t.brainstemExamNormal}.`;
     sections.push(bsText);
 
     // Pyramidal - list specific weakness findings
@@ -761,157 +1177,158 @@ export default function App() {
 
     // Upper limbs
     const upperMuscles = [
-      { name: 'shoulder abduction', r: pyramidal.shoulderAbductionR, l: pyramidal.shoulderAbductionL },
-      { name: 'shoulder external rotation', r: pyramidal.shoulderExternalRotationR, l: pyramidal.shoulderExternalRotationL },
-      { name: 'elbow flexion', r: pyramidal.elbowFlexionR, l: pyramidal.elbowFlexionL },
-      { name: 'elbow extension', r: pyramidal.elbowExtensionR, l: pyramidal.elbowExtensionL },
-      { name: 'wrist extension', r: pyramidal.wristExtensionR, l: pyramidal.wristExtensionL },
-      { name: 'finger abduction', r: pyramidal.fingerAbductionR, l: pyramidal.fingerAbductionL },
+      { name: t.shoulderAbduction.toLowerCase(), r: pyramidal.shoulderAbductionR, l: pyramidal.shoulderAbductionL },
+      { name: t.shoulderExternalRotation.toLowerCase(), r: pyramidal.shoulderExternalRotationR, l: pyramidal.shoulderExternalRotationL },
+      { name: t.elbowFlexion.toLowerCase(), r: pyramidal.elbowFlexionR, l: pyramidal.elbowFlexionL },
+      { name: t.elbowExtension.toLowerCase(), r: pyramidal.elbowExtensionR, l: pyramidal.elbowExtensionL },
+      { name: t.wristExtension.toLowerCase(), r: pyramidal.wristExtensionR, l: pyramidal.wristExtensionL },
+      { name: t.fingerAbduction.toLowerCase(), r: pyramidal.fingerAbductionR, l: pyramidal.fingerAbductionL },
     ];
 
     // Lower limbs
     const lowerMuscles = [
-      { name: 'hip flexion', r: pyramidal.hipFlexionR, l: pyramidal.hipFlexionL },
-      { name: 'hip abduction', r: pyramidal.hipAbductionR, l: pyramidal.hipAbductionL },
-      { name: 'knee extension', r: pyramidal.kneeExtensionR, l: pyramidal.kneeExtensionL },
-      { name: 'knee flexion', r: pyramidal.kneeFlexionR, l: pyramidal.kneeFlexionL },
-      { name: 'ankle dorsiflexion', r: pyramidal.ankleDorsiflexionR, l: pyramidal.ankleDorsiflexionL },
-      { name: 'ankle plantarflexion', r: pyramidal.anklePlantarflexionR, l: pyramidal.anklePlantarflexionL },
+      { name: t.hipFlexion.toLowerCase(), r: pyramidal.hipFlexionR, l: pyramidal.hipFlexionL },
+      { name: t.hipAbduction.toLowerCase(), r: pyramidal.hipAbductionR, l: pyramidal.hipAbductionL },
+      { name: t.kneeExtension.toLowerCase(), r: pyramidal.kneeExtensionR, l: pyramidal.kneeExtensionL },
+      { name: t.kneeFlexion.toLowerCase(), r: pyramidal.kneeFlexionR, l: pyramidal.kneeFlexionL },
+      { name: t.ankleDorsiflexion.toLowerCase(), r: pyramidal.ankleDorsiflexionR, l: pyramidal.ankleDorsiflexionL },
+      { name: t.anklePlantarflexion.toLowerCase(), r: pyramidal.anklePlantarflexionR, l: pyramidal.anklePlantarflexionL },
     ];
 
     // Check for weakness in upper limbs
     for (const muscle of upperMuscles) {
       if (muscle.r < 5 && muscle.l < 5 && muscle.r === muscle.l) {
-        weaknessFindings.push(`${muscle.name} ${muscle.r}/5 bilaterally`);
+        weaknessFindings.push(`${muscle.name} ${muscle.r}/5 ${t.bilaterally}`);
       } else {
-        if (muscle.r < 5) weaknessFindings.push(`right ${muscle.name} ${muscle.r}/5`);
-        if (muscle.l < 5) weaknessFindings.push(`left ${muscle.name} ${muscle.l}/5`);
+        if (muscle.r < 5) weaknessFindings.push(`${t.right} ${muscle.name} ${muscle.r}/5`);
+        if (muscle.l < 5) weaknessFindings.push(`${t.left} ${muscle.name} ${muscle.l}/5`);
       }
     }
 
     // Check for weakness in lower limbs
     for (const muscle of lowerMuscles) {
       if (muscle.r < 5 && muscle.l < 5 && muscle.r === muscle.l) {
-        weaknessFindings.push(`${muscle.name} ${muscle.r}/5 bilaterally`);
+        weaknessFindings.push(`${muscle.name} ${muscle.r}/5 ${t.bilaterally}`);
       } else {
-        if (muscle.r < 5) weaknessFindings.push(`right ${muscle.name} ${muscle.r}/5`);
-        if (muscle.l < 5) weaknessFindings.push(`left ${muscle.name} ${muscle.l}/5`);
+        if (muscle.r < 5) weaknessFindings.push(`${t.right} ${muscle.name} ${muscle.r}/5`);
+        if (muscle.l < 5) weaknessFindings.push(`${t.left} ${muscle.name} ${muscle.l}/5`);
       }
     }
 
     const umnSigns: string[] = [];
-    if (pyramidal.hyperreflexia) umnSigns.push('hyperreflexia');
-    if (pyramidal.babinski) umnSigns.push('positive Babinski sign');
-    if (pyramidal.clonus) umnSigns.push('clonus');
-    if (pyramidal.spasticGait) umnSigns.push('spastic gait');
-    if (pyramidal.fatigability) umnSigns.push('fatigability');
+    if (pyramidal.hyperreflexia) umnSigns.push(t.hyperreflexia.toLowerCase());
+    if (pyramidal.babinski) umnSigns.push(t.positiveBarbinskiSign);
+    if (pyramidal.clonus) umnSigns.push(t.clonus.toLowerCase());
+    if (pyramidal.spasticGait) umnSigns.push(t.spasticGaitText);
+    if (pyramidal.fatigability) umnSigns.push(t.fatigability.toLowerCase());
 
-    let pText = 'Motor examination: ';
+    let pText = `${t.motorExamination}: `;
     if (weaknessFindings.length > 0 || umnSigns.length > 0) {
       const allFindings: string[] = [];
       if (weaknessFindings.length > 0) allFindings.push(weaknessFindings.join(', '));
       if (umnSigns.length > 0) allFindings.push(umnSigns.join(', '));
       pText += allFindings.join('; ') + '.';
     } else {
-      pText += 'normal with full strength (MRC 5/5) throughout and no upper motor neuron signs.';
+      pText += `${t.normal} ${t.withFullStrength}.`;
     }
     sections.push(pText);
 
     // Cerebellar
     const cParts: string[] = [];
-    if (cerebellar.inabilityCoordinatedMovements) cParts.push('unable to perform coordinated movements');
-    if (cerebellar.ataxiaThreeOrFourLimbs) cParts.push('ataxia in 3-4 limbs');
-    if (cerebellar.needsAssistanceDueAtaxia) cParts.push('needs assistance due to ataxia');
-    if (cerebellar.limbAtaxiaAffectsFunction) cParts.push('limb ataxia affecting function');
-    if (cerebellar.gaitAtaxia) cParts.push('gait ataxia');
-    if (cerebellar.truncalAtaxiaEO) cParts.push('truncal ataxia');
-    if (cerebellar.tremorOrAtaxiaOnCoordTests) cParts.push('tremor/ataxia on coordination testing');
-    if (cerebellar.rombergFallTendency) cParts.push('fall tendency on Romberg');
-    if (cerebellar.lineWalkDifficulty) cParts.push('tandem gait difficulty');
-    if (cerebellar.mildCerebellarSignsNoFunction) cParts.push('mild cerebellar signs without functional impact');
+    if (cerebellar.inabilityCoordinatedMovements) cParts.push(t.unableCoordMovementsText);
+    if (cerebellar.ataxiaThreeOrFourLimbs) cParts.push(t.ataxiaIn34Limbs);
+    if (cerebellar.needsAssistanceDueAtaxia) cParts.push(t.needsAssistanceAtaxiaText);
+    if (cerebellar.limbAtaxiaAffectsFunction) cParts.push(t.limbAtaxiaAffectingFunction);
+    if (cerebellar.gaitAtaxia) cParts.push(t.gaitAtaxiaText);
+    if (cerebellar.truncalAtaxiaEO) cParts.push(t.truncalAtaxiaText);
+    if (cerebellar.tremorOrAtaxiaOnCoordTests) cParts.push(t.tremorAtaxiaCoordTesting);
+    if (cerebellar.rombergFallTendency) cParts.push(t.fallTendencyRomberg);
+    if (cerebellar.lineWalkDifficulty) cParts.push(t.tandemGaitDifficulty);
+    if (cerebellar.mildCerebellarSignsNoFunction) cParts.push(t.mildCerebellarSignsNoFunction);
     const cText = cParts.length > 0
-      ? `Cerebellar: ${cParts.join(', ')}.`
-      : 'Cerebellar examination normal.';
+      ? `${t.cerebellar}: ${cParts.join(', ')}.`
+      : `${t.cerebellarExamNormal}.`;
     sections.push(cText);
 
     // Sensory
     const sParts: string[] = [];
+    const getSensText = (sev: string) => sev === 'normal' ? t.sensNormal : sev === 'mild' ? t.sensMild : sev === 'moderate' ? t.sensModerate : sev === 'marked' ? t.sensMarked : t.sensAbsent;
     if (sensory.vibSeverity !== 'normal' && sensory.vibCount > 0) {
-      sParts.push(`${sensory.vibSeverity} vibration sense deficit in ${sensory.vibCount} limb(s)`);
+      sParts.push(`${getSensText(sensory.vibSeverity)} ${t.vibrationSenseDeficit} ${sensory.vibCount} ${t.limbS}`);
     }
     if (sensory.ptSeverity !== 'normal' && sensory.ptCount > 0) {
-      sParts.push(`${sensory.ptSeverity} pain/touch deficit in ${sensory.ptCount} limb(s)`);
+      sParts.push(`${getSensText(sensory.ptSeverity)} ${t.painTouchDeficit} ${sensory.ptCount} ${t.limbS}`);
     }
     if (sensory.jpSeverity !== 'normal' && sensory.jpCount > 0) {
-      sParts.push(`${sensory.jpSeverity} joint position sense deficit in ${sensory.jpCount} limb(s)`);
+      sParts.push(`${getSensText(sensory.jpSeverity)} ${t.jointPositionDeficit} ${sensory.jpCount} ${t.limbS}`);
     }
     const sText = sParts.length > 0
-      ? `Sensory examination: ${sParts.join(', ')}.`
-      : 'Sensory examination normal.';
+      ? `${t.sensoryExamination}: ${sParts.join(', ')}.`
+      : `${t.sensoryExaminationNormal}.`;
     sections.push(sText);
 
     // Bowel/Bladder
     const bladderParts: string[] = [];
     const bowelParts: string[] = [];
-    if (bb.lossBladderFunction) bladderParts.push('loss of bladder function');
-    else if (bb.permanentCatheter) bladderParts.push('permanent catheter');
-    else if (bb.frequentIncontinence) bladderParts.push('frequent incontinence');
-    else if (bb.intermittentCatheterization) bladderParts.push('intermittent catheterization');
-    else if (bb.rareIncontinence) bladderParts.push('rare incontinence');
-    else if (bb.moderateUrge) bladderParts.push('moderate urinary urgency');
-    else if (bb.mildUrge) bladderParts.push('mild urinary urgency');
+    if (bb.lossBladderFunction) bladderParts.push(t.lossBladderFunction.toLowerCase());
+    else if (bb.permanentCatheter) bladderParts.push(t.permanentCath.toLowerCase());
+    else if (bb.frequentIncontinence) bladderParts.push(t.frequentIncontinence.toLowerCase());
+    else if (bb.intermittentCatheterization) bladderParts.push(t.intermittentCath.toLowerCase());
+    else if (bb.rareIncontinence) bladderParts.push(t.rareIncontinence.toLowerCase());
+    else if (bb.moderateUrge) bladderParts.push(t.moderateUrge.toLowerCase());
+    else if (bb.mildUrge) bladderParts.push(t.mildUrge.toLowerCase());
 
-    if (bb.lossBowelFunction) bowelParts.push('loss of bowel function');
-    else if (bb.bowelIncontinenceWeekly) bowelParts.push('weekly bowel incontinence');
-    else if (bb.needsHelpForBowelMovement) bowelParts.push('needs assistance for bowel movements');
-    else if (bb.severeConstipation) bowelParts.push('severe constipation');
-    else if (bb.moderateConstipation) bowelParts.push('moderate constipation');
-    else if (bb.mildConstipation) bowelParts.push('mild constipation');
+    if (bb.lossBowelFunction) bowelParts.push(t.lossBowelFunction.toLowerCase());
+    else if (bb.bowelIncontinenceWeekly) bowelParts.push(t.bowelIncontinenceWeekly.toLowerCase());
+    else if (bb.needsHelpForBowelMovement) bowelParts.push(t.needsHelpBM.toLowerCase());
+    else if (bb.severeConstipation) bowelParts.push(t.severeConstipation.toLowerCase());
+    else if (bb.moderateConstipation) bowelParts.push(t.moderateConstipation.toLowerCase());
+    else if (bb.mildConstipation) bowelParts.push(t.mildConstipation.toLowerCase());
 
-    let bbText = 'Bowel and bladder function: ';
+    let bbText = '';
     if (bladderParts.length > 0 || bowelParts.length > 0) {
       const parts = [];
-      if (bladderParts.length > 0) parts.push(bladderParts.join(', '));
-      if (bowelParts.length > 0) parts.push(bowelParts.join(', '));
-      bbText += parts.join('; ') + '.';
+      if (bladderParts.length > 0) parts.push(`${t.bladderFunction}: ${bladderParts.join(', ')}`);
+      if (bowelParts.length > 0) parts.push(`${t.bowelFunction}: ${bowelParts.join(', ')}`);
+      bbText = parts.join('; ') + '.';
     } else {
-      bbText += 'normal.';
+      bbText = `${t.bowelBladderNormal}.`;
     }
     sections.push(bbText);
 
     // Mental
     const cogParts: string[] = [];
     const fatigueParts: string[] = [];
-    if (mental.pronouncedDementia) cogParts.push('pronounced dementia with disorientation');
-    else if (mental.markedlyReducedCognition) cogParts.push('markedly reduced cognition, not oriented in 1-2 dimensions');
-    else if (mental.moderatelyReducedCognition) cogParts.push('moderately reduced cognition with reduced test performance');
-    else if (mental.lightlyReducedCognition) cogParts.push('lightly reduced cognition');
+    if (mental.pronouncedDementia) cogParts.push(t.pronouncedDementia.toLowerCase());
+    else if (mental.markedlyReducedCognition) cogParts.push(t.markedlyReducedCog.toLowerCase());
+    else if (mental.moderatelyReducedCognition) cogParts.push(t.moderatelyReducedCog.toLowerCase());
+    else if (mental.lightlyReducedCognition) cogParts.push(t.lightlyReducedCog.toLowerCase());
 
-    if (mental.moderateToSevereFatigue) fatigueParts.push('moderate to severe fatigue affecting ≥50% of daily activities');
-    else if (mental.mildFatigue) fatigueParts.push('mild fatigue affecting <50% of daily activities');
+    if (mental.moderateToSevereFatigue) fatigueParts.push(t.moderateSevereFatigue.toLowerCase());
+    else if (mental.mildFatigue) fatigueParts.push(t.mildFatigue.toLowerCase());
 
-    let mText = 'Mental status: ';
+    let mText = '';
     if (cogParts.length > 0 || fatigueParts.length > 0) {
       const parts = [];
-      if (cogParts.length > 0) parts.push(cogParts.join(', '));
-      if (fatigueParts.length > 0) parts.push(fatigueParts.join(', '));
-      mText += parts.join('; ') + '.';
+      if (cogParts.length > 0) parts.push(`${t.cognitive}: ${cogParts.join(', ')}`);
+      if (fatigueParts.length > 0) parts.push(`${fatigueParts.join(', ')}`);
+      mText = parts.join('; ') + '.';
     } else {
-      mText += 'normal cognition and no significant fatigue.';
+      mText = `${t.cognitiveNormal}.`;
     }
     sections.push(mText);
 
     // Ambulation
     const ambText = assistance === 'none'
-      ? `Ambulation: walks ${parsedDistance ?? 'unknown'} meters without assistance.`
-      : `Ambulation: ${assistanceLevels.find(a => a.id === assistance)?.label || assistance}.`;
+      ? `${t.ambulationText}: ${t.walks} ${parsedDistance ?? t.unknown} ${t.meters} ${t.withoutAssistance}.`
+      : `${t.ambulationText}: ${assistanceLevels.find(a => a.id === assistance)?.label || assistance}.`;
     sections.push(ambText);
 
     // EDSS
     sections.push(`\nEDSS: ${edss.toFixed(1)}`);
 
     return sections.join(' ');
-  }, [visual, brainstem, pyramidal, cerebellar, sensory, bb, mental, assistance, parsedDistance, edss]);
+  }, [visual, brainstem, pyramidal, cerebellar, sensory, bb, mental, assistance, parsedDistance, edss, t, assistanceLevels]);
 
   const [copied, setCopied] = useState(false);
   const [copiedExam, setCopiedExam] = useState(false);
@@ -1016,7 +1433,7 @@ export default function App() {
             <div className="text-xs opacity-60">{meta.help}</div>
           </div>
           <div className="flex items-center gap-2">
-            <label className="text-xs opacity-70">Override grade</label>
+            <label className="text-xs opacity-70">{t.overrideScore}</label>
             <select className="rounded-xl border p-1 text-sm" value={fs[code]} onChange={(e)=> setFs((prev)=> ({...prev, [code]: clamp(Number(e.target.value), 0, meta.max)}))}>
               {Array.from({ length: meta.max + 1 }, (_, i) => (<option key={i} value={i}>{i}</option>))}
             </select>
@@ -1033,10 +1450,18 @@ export default function App() {
       <div className="min-h-screen w-full bg-gray-50 p-4 md:p-8">
         <div className="max-w-5xl mx-auto space-y-6" style={{ overflowAnchor: 'none' }}>
           <header className="flex items-center justify-between">
-            <h1 className="text-2xl md:text-3xl font-bold">EDSS Calculator</h1>
+            <h1 className="text-2xl md:text-3xl font-bold">{t.title}</h1>
             <div className="flex items-center gap-4">
-              <div className="text-sm opacity-60">Jonas Bull Haugsøen • Version 0.1</div>
-              <button onClick={resetAll} className="px-4 py-2 rounded-xl border bg-white hover:bg-gray-100 text-sm font-medium">Reset</button>
+              <div className="text-sm opacity-60">Jonas Bull Haugsøen • {t.version}</div>
+              <select
+                value={language}
+                onChange={(e) => setLanguage(e.target.value as Language)}
+                className="px-3 py-2 rounded-xl border bg-white hover:bg-gray-100 text-sm font-medium cursor-pointer"
+              >
+                <option value="en">English</option>
+                <option value="no">Norsk</option>
+              </select>
+              <button onClick={resetAll} className="px-4 py-2 rounded-xl border bg-white hover:bg-gray-100 text-sm font-medium">{t.reset}</button>
             </div>
           </header>
 
@@ -1044,7 +1469,7 @@ export default function App() {
           <FSRow code="V">
             <div className="space-y-2">
               <div className="space-y-1">
-                <div className="text-sm font-medium">Left eye acuity</div>
+                <div className="text-sm font-medium">{t.leftEyeAcuity}</div>
                 <select className="w-full border rounded-lg p-1 text-sm" value={visual.leftEyeAcuity} onChange={(e)=>setVisual({...visual, leftEyeAcuity: e.target.value as EyeAcuity})}>
                   <option value="1.0">1.0</option>
                   <option value="0.68-0.99">0.68-0.99</option>
@@ -1056,7 +1481,7 @@ export default function App() {
               </div>
 
               <div className="space-y-1">
-                <div className="text-sm font-medium">Right eye acuity</div>
+                <div className="text-sm font-medium">{t.rightEyeAcuity}</div>
                 <select className="w-full border rounded-lg p-1 text-sm" value={visual.rightEyeAcuity} onChange={(e)=>setVisual({...visual, rightEyeAcuity: e.target.value as EyeAcuity})}>
                   <option value="1.0">1.0</option>
                   <option value="0.68-0.99">0.68-0.99</option>
@@ -1069,12 +1494,12 @@ export default function App() {
             </div>
 
             <div className="space-y-1">
-              <div className="text-sm font-medium">Visual field deficit</div>
+              <div className="text-sm font-medium">{t.visualFieldDeficit}</div>
               <select className="w-full border rounded-lg p-1 text-sm" value={visual.visualFieldDeficit} onChange={(e)=>setVisual({...visual, visualFieldDeficit: e.target.value as VisualForm["visualFieldDeficit"]})}>
-                <option value="none">None</option>
-                <option value="mild">Mild (only on testing)</option>
-                <option value="moderate">Moderate (patient notices deficit or complete hemianopia)</option>
-                <option value="marked">Marked (complete hemianopia)</option>
+                <option value="none">{t.vfNone}</option>
+                <option value="mild">{t.vfMild}</option>
+                <option value="moderate">{t.vfModerate}</option>
+                <option value="marked">{t.vfMarked}</option>
               </select>
             </div>
           </FSRow>
@@ -1083,80 +1508,80 @@ export default function App() {
           <FSRow code="BS">
             <div className="space-y-2">
               <div className="space-y-1">
-                <div className="text-sm font-medium">Eye motility</div>
+                <div className="text-sm font-medium">{t.eyeMotility}</div>
                 <select className="w-full border rounded-lg p-1 text-sm" value={brainstem.eyeMotilityLevel} onChange={(e)=>setBrainstem({...brainstem, eyeMotilityLevel: Number(e.target.value) as 0|1|2|3|4})}>
-                  <option value="0">0 - Normal</option>
-                  <option value="1">1 - Subtle findings, no symptoms</option>
-                  <option value="2">2 - Subtle findings (patient aware) or clear incomplete paresis (patient unaware)</option>
-                  <option value="3">3 - Clear incomplete paresis (patient aware) or complete loss in one direction</option>
-                  <option value="4">4 - Complete loss in multiple directions</option>
+                  <option value="0">{t.eyeMotility0}</option>
+                  <option value="1">{t.eyeMotility1}</option>
+                  <option value="2">{t.eyeMotility2}</option>
+                  <option value="3">{t.eyeMotility3}</option>
+                  <option value="4">{t.eyeMotility4}</option>
                 </select>
               </div>
 
               <div className="space-y-1">
-                <div className="text-sm font-medium">Nystagmus</div>
+                <div className="text-sm font-medium">{t.nystagmus}</div>
                 <select className="w-full border rounded-lg p-1 text-sm" value={brainstem.nystagmusLevel} onChange={(e)=>setBrainstem({...brainstem, nystagmusLevel: Number(e.target.value) as 0|1|2|3})}>
-                  <option value="0">0 - None</option>
-                  <option value="1">1 - Mild gaze-evoked nystagmus</option>
-                  <option value="2">2 - Clear gaze-evoked nystagmus</option>
-                  <option value="3">3 - Spontaneous nystagmus or complete INO</option>
+                  <option value="0">{t.nystagmus0}</option>
+                  <option value="1">{t.nystagmus1}</option>
+                  <option value="2">{t.nystagmus2}</option>
+                  <option value="3">{t.nystagmus3}</option>
                 </select>
               </div>
 
               <div className="space-y-1">
-                <div className="text-sm font-medium">Facial sensibility</div>
+                <div className="text-sm font-medium">{t.facialSensibility}</div>
                 <select className="w-full border rounded-lg p-1 text-sm" value={brainstem.facialSensibilityLevel} onChange={(e)=>setBrainstem({...brainstem, facialSensibilityLevel: Number(e.target.value) as 0|1|2|3|4})}>
-                  <option value="0">0 - Normal</option>
-                  <option value="1">1 - Signs only</option>
-                  <option value="2">2 - Decreased sensation</option>
-                  <option value="3">3 - Decreased discrimination or trigeminal neuralgia &gt;24h</option>
-                  <option value="4">4 - Complete sensory loss (uni/bilateral)</option>
+                  <option value="0">{t.facialSensibility0}</option>
+                  <option value="1">{t.facialSensibility1}</option>
+                  <option value="2">{t.facialSensibility2}</option>
+                  <option value="3">{t.facialSensibility3}</option>
+                  <option value="4">{t.facialSensibility4}</option>
                 </select>
               </div>
 
               <div className="space-y-1">
-                <div className="text-sm font-medium">Facial symmetry</div>
+                <div className="text-sm font-medium">{t.facialSymmetry}</div>
                 <select className="w-full border rounded-lg p-1 text-sm" value={brainstem.facialSymmetryLevel} onChange={(e)=>setBrainstem({...brainstem, facialSymmetryLevel: Number(e.target.value) as 0|1|2|3|4})}>
-                  <option value="0">0 - Normal</option>
-                  <option value="1">1 - Signs only</option>
-                  <option value="2">2 - Decreased facial strength</option>
-                  <option value="3">3 - Incomplete facial palsy (eye patch at night or drooling)</option>
-                  <option value="4">4 - Complete uni/bilateral facial palsy</option>
+                  <option value="0">{t.facialSymmetry0}</option>
+                  <option value="1">{t.facialSymmetry1}</option>
+                  <option value="2">{t.facialSymmetry2}</option>
+                  <option value="3">{t.facialSymmetry3}</option>
+                  <option value="4">{t.facialSymmetry4}</option>
                 </select>
               </div>
             </div>
 
             <div className="space-y-2">
               <div className="space-y-1">
-                <div className="text-sm font-medium">Hearing</div>
+                <div className="text-sm font-medium">{t.hearing}</div>
                 <select className="w-full border rounded-lg p-1 text-sm" value={brainstem.hearingLevel} onChange={(e)=>setBrainstem({...brainstem, hearingLevel: Number(e.target.value) as 0|1|2|3|4})}>
-                  <option value="0">0 - Normal</option>
-                  <option value="1">1 - Reduced hearing (finger rub) or Weber lateralization, no symptoms</option>
-                  <option value="2">2 - Findings with patient awareness</option>
-                  <option value="3">3 - Cannot hear finger rub or difficulty with whisper</option>
-                  <option value="4">4 - Cannot hear whisper</option>
+                  <option value="0">{t.hearing0}</option>
+                  <option value="1">{t.hearing1}</option>
+                  <option value="2">{t.hearing2}</option>
+                  <option value="3">{t.hearing3}</option>
+                  <option value="4">{t.hearing4}</option>
                 </select>
               </div>
 
               <div className="space-y-1">
-                <div className="text-sm font-medium">Dysarthria</div>
+                <div className="text-sm font-medium">{t.dysarthria}</div>
                 <select className="w-full border rounded-lg p-1 text-sm" value={brainstem.dysarthriaLevel} onChange={(e)=>setBrainstem({...brainstem, dysarthriaLevel: Number(e.target.value) as 0|1|2|3|4})}>
-                  <option value="0">0 - Normal</option>
-                  <option value="1">1 - Slurred speech (patient aware)</option>
-                  <option value="2">2 - Difficult to understand due to slurring</option>
-                  <option value="3">3 - Incomprehensible speech</option>
-                  <option value="4">4 - Unable to speak</option>
+                  <option value="0">{t.dysarthria0}</option>
+                  <option value="1">{t.dysarthria1}</option>
+                  <option value="2">{t.dysarthria2}</option>
+                  <option value="3">{t.dysarthria3}</option>
+                  <option value="4">{t.dysarthria4}</option>
                 </select>
               </div>
 
               <div className="space-y-1">
-                <div className="text-sm font-medium">Dysphagia</div>
+                <div className="text-sm font-medium">{t.dysphagia}</div>
                 <select className="w-full border rounded-lg p-1 text-sm" value={brainstem.dysphagiaLevel} onChange={(e)=>setBrainstem({...brainstem, dysphagiaLevel: Number(e.target.value) as 0|1|2|3|4})}>
-                  <option value="0">0 - Normal</option>
-                  <option value="1">1 - Difficulty swallowing liquids</option>
-                  <option value="2">2 - Difficulty swallowing liquids and solids</option>
-                  <option value="3">3 - Marked difficulty (dependent on pureed food)</option>
-                  <option value="4">4 - Unable to swallow</option>
+                  <option value="0">{t.dysphagia0}</option>
+                  <option value="1">{t.dysphagia1}</option>
+                  <option value="2">{t.dysphagia2}</option>
+                  <option value="3">{t.dysphagia3}</option>
+                  <option value="4">{t.dysphagia4}</option>
                 </select>
               </div>
             </div>
@@ -1166,27 +1591,27 @@ export default function App() {
           <FSRow code="P">
             {/* Upper limbs table */}
             <div className="space-y-2">
-              <div className="text-sm font-medium">Upper limbs (MRC 0–5)</div>
+              <div className="text-sm font-medium">{t.upperLimbsMRC}</div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead className="text-left">
                     <tr>
-                      <th className="py-1 pr-2">Movement</th>
+                      <th className="py-1 pr-2">{t.movement}</th>
                       <th className="py-1 pr-2">R</th>
                       <th className="py-1 pr-2">L</th>
                     </tr>
                   </thead>
                   <tbody>
                     {[
-                      { keyR: 'shoulderAbductionR', keyL: 'shoulderAbductionL', label: 'Shoulder abduction' },
-                      { keyR: 'shoulderExternalRotationR', keyL: 'shoulderExternalRotationL', label: 'Shoulder external rotation' },
-                      { keyR: 'elbowFlexionR', keyL: 'elbowFlexionL', label: 'Elbow flexion' },
-                      { keyR: 'elbowExtensionR', keyL: 'elbowExtensionL', label: 'Elbow extension' },
-                      { keyR: 'wristExtensionR', keyL: 'wristExtensionL', label: 'Wrist extension' },
-                      { keyR: 'fingerAbductionR', keyL: 'fingerAbductionL', label: 'Finger abduction' },
+                      { keyR: 'shoulderAbductionR', keyL: 'shoulderAbductionL', labelKey: 'shoulderAbduction' as const },
+                      { keyR: 'shoulderExternalRotationR', keyL: 'shoulderExternalRotationL', labelKey: 'shoulderExternalRotation' as const },
+                      { keyR: 'elbowFlexionR', keyL: 'elbowFlexionL', labelKey: 'elbowFlexion' as const },
+                      { keyR: 'elbowExtensionR', keyL: 'elbowExtensionL', labelKey: 'elbowExtension' as const },
+                      { keyR: 'wristExtensionR', keyL: 'wristExtensionL', labelKey: 'wristExtension' as const },
+                      { keyR: 'fingerAbductionR', keyL: 'fingerAbductionL', labelKey: 'fingerAbduction' as const },
                     ].map((row) => (
-                      <tr key={row.label} className="border-t">
-                        <td className="py-1 pr-2">{row.label}</td>
+                      <tr key={row.labelKey} className="border-t">
+                        <td className="py-1 pr-2">{t[row.labelKey]}</td>
                         <td className="py-1 pr-2">
                           <select className="border rounded-lg p-1" value={(pyramidal as any)[row.keyR]} onChange={(e)=> setPyramidal(prev=> ({...prev, [row.keyR]: Number(e.target.value)} as any))}>
                             {[5,4,3,2,1,0].map(v=> <option key={v} value={v}>{v}</option>)}
@@ -1206,27 +1631,27 @@ export default function App() {
 
             {/* Lower limbs table */}
             <div className="space-y-2">
-              <div className="text-sm font-medium">Lower limbs (MRC 0–5)</div>
+              <div className="text-sm font-medium">{t.lowerLimbsMRC}</div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead className="text-left">
                     <tr>
-                      <th className="py-1 pr-2">Movement</th>
+                      <th className="py-1 pr-2">{t.movement}</th>
                       <th className="py-1 pr-2">R</th>
                       <th className="py-1 pr-2">L</th>
                     </tr>
                   </thead>
                   <tbody>
                     {[
-                      { keyR: 'hipFlexionR', keyL: 'hipFlexionL', label: 'Hip flexion' },
-                      { keyR: 'hipAbductionR', keyL: 'hipAbductionL', label: 'Hip abduction' },
-                      { keyR: 'kneeExtensionR', keyL: 'kneeExtensionL', label: 'Knee extension' },
-                      { keyR: 'kneeFlexionR', keyL: 'kneeFlexionL', label: 'Knee flexion' },
-                      { keyR: 'ankleDorsiflexionR', keyL: 'ankleDorsiflexionL', label: 'Ankle dorsiflexion' },
-                      { keyR: 'anklePlantarflexionR', keyL: 'anklePlantarflexionL', label: 'Ankle plantarflexion' },
+                      { keyR: 'hipFlexionR', keyL: 'hipFlexionL', labelKey: 'hipFlexion' as const },
+                      { keyR: 'hipAbductionR', keyL: 'hipAbductionL', labelKey: 'hipAbduction' as const },
+                      { keyR: 'kneeExtensionR', keyL: 'kneeExtensionL', labelKey: 'kneeExtension' as const },
+                      { keyR: 'kneeFlexionR', keyL: 'kneeFlexionL', labelKey: 'kneeFlexion' as const },
+                      { keyR: 'ankleDorsiflexionR', keyL: 'ankleDorsiflexionL', labelKey: 'ankleDorsiflexion' as const },
+                      { keyR: 'anklePlantarflexionR', keyL: 'anklePlantarflexionL', labelKey: 'anklePlantarflexion' as const },
                     ].map((row) => (
-                      <tr key={row.label} className="border-t">
-                        <td className="py-1 pr-2">{row.label}</td>
+                      <tr key={row.labelKey} className="border-t">
+                        <td className="py-1 pr-2">{t[row.labelKey]}</td>
                         <td className="py-1 pr-2">
                           <select className="border rounded-lg p-1" value={(pyramidal as any)[row.keyR]} onChange={(e)=> setPyramidal(prev=> ({...prev, [row.keyR]: Number(e.target.value)} as any))}>
                             {[5,4,3,2,1,0].map(v=> <option key={v} value={v}>{v}</option>)}
@@ -1243,13 +1668,13 @@ export default function App() {
                 </table>
               </div>
               <div className="pt-2 space-y-1">
-                <div className="text-sm font-medium">Findings</div>
+                <div className="text-sm font-medium">{t.findings}</div>
                 {([
-                  ["hyperreflexia","Hyperreflexia"], ["babinski","Babinski"], ["clonus","Clonus"], ["spasticGait","Spastic gait"], ["fatigability","Fatigability"]
-                ] as const).map(([k,label])=> (
+                  ["hyperreflexia","hyperreflexia"], ["babinski","babinski"], ["clonus","clonus"], ["spasticGait","spasticGait"], ["fatigability","fatigability"]
+                ] as const).map(([k,labelKey])=> (
                   <label key={k} className="flex items-center gap-2 text-sm">
                     <input type="checkbox" checked={(pyramidal as any)[k]} onChange={(e)=> setPyramidal(prev=> ({...prev, [k]: e.target.checked} as any))} />
-                    <span>{label}</span>
+                    <span>{t[labelKey]}</span>
                   </label>
                 ))}
               </div>
@@ -1259,57 +1684,69 @@ export default function App() {
           {/* C */}
           <FSRow code="C">
             <div className="space-y-2">
-              <div className="text-sm font-medium">Minimal impact</div>
-              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={cerebellar.tremorOrAtaxiaOnCoordTests} onChange={(e)=>setCerebellar({ ...cerebellar, tremorOrAtaxiaOnCoordTests: e.target.checked })}/>Tremor/ataxia on coordination tests</label>
-              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={cerebellar.rombergFallTendency} onChange={(e)=>setCerebellar({ ...cerebellar, rombergFallTendency: e.target.checked })}/>Fall tendency on Romberg</label>
-              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={cerebellar.lineWalkDifficulty} onChange={(e)=>setCerebellar({ ...cerebellar, lineWalkDifficulty: e.target.checked })}/>Difficulty on tandem/line walk</label>
-              <label className="flex items-center gap-2 text-sm opacity-70"><input type="checkbox" checked={cerebellar.mildCerebellarSignsNoFunction} onChange={(e)=>setCerebellar({ ...cerebellar, mildCerebellarSignsNoFunction: e.target.checked })}/>Mild signs without functional loss</label>
+              <div className="text-sm font-medium">{t.minimalImpact}</div>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={cerebellar.tremorOrAtaxiaOnCoordTests} onChange={(e)=>setCerebellar({ ...cerebellar, tremorOrAtaxiaOnCoordTests: e.target.checked })}/>{t.tremorAtaxiaCoord}</label>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={cerebellar.rombergFallTendency} onChange={(e)=>setCerebellar({ ...cerebellar, rombergFallTendency: e.target.checked })}/>{t.rombergFall}</label>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={cerebellar.lineWalkDifficulty} onChange={(e)=>setCerebellar({ ...cerebellar, lineWalkDifficulty: e.target.checked })}/>{t.tandemDifficulty}</label>
+              <label className="flex items-center gap-2 text-sm opacity-70"><input type="checkbox" checked={cerebellar.mildCerebellarSignsNoFunction} onChange={(e)=>setCerebellar({ ...cerebellar, mildCerebellarSignsNoFunction: e.target.checked })}/>{t.mildCerebellarSigns}</label>
             </div>
             <div className="space-y-2">
-              <div className="text-sm font-medium">Functional impact / severe</div>
-              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={cerebellar.limbAtaxiaAffectsFunction} onChange={(e)=>setCerebellar({ ...cerebellar, limbAtaxiaAffectsFunction: e.target.checked })}/>Moderate limb ataxia affecting function</label>
-              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={cerebellar.gaitAtaxia} onChange={(e)=>setCerebellar({ ...cerebellar, gaitAtaxia: e.target.checked })}/>Gait ataxia</label>
-              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={cerebellar.truncalAtaxiaEO} onChange={(e)=>setCerebellar({ ...cerebellar, truncalAtaxiaEO: e.target.checked })}/>Truncal ataxia (eyes open)</label>
-              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={cerebellar.ataxiaThreeOrFourLimbs} onChange={(e)=>setCerebellar({ ...cerebellar, ataxiaThreeOrFourLimbs: e.target.checked })}/>Pronounced ataxia in 3–4 limbs</label>
-              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={cerebellar.needsAssistanceDueAtaxia} onChange={(e)=>setCerebellar({ ...cerebellar, needsAssistanceDueAtaxia: e.target.checked })}/>Needs assistance due to ataxia</label>
-              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={cerebellar.inabilityCoordinatedMovements} onChange={(e)=>setCerebellar({ ...cerebellar, inabilityCoordinatedMovements: e.target.checked })}/>Unable to perform coordinated movements due to ataxia</label>
+              <div className="text-sm font-medium">{t.functionalImpact}</div>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={cerebellar.limbAtaxiaAffectsFunction} onChange={(e)=>setCerebellar({ ...cerebellar, limbAtaxiaAffectsFunction: e.target.checked })}/>{t.limbAtaxiaFunction}</label>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={cerebellar.gaitAtaxia} onChange={(e)=>setCerebellar({ ...cerebellar, gaitAtaxia: e.target.checked })}/>{t.gaitAtaxia}</label>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={cerebellar.truncalAtaxiaEO} onChange={(e)=>setCerebellar({ ...cerebellar, truncalAtaxiaEO: e.target.checked })}/>{t.truncalAtaxia}</label>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={cerebellar.ataxiaThreeOrFourLimbs} onChange={(e)=>setCerebellar({ ...cerebellar, ataxiaThreeOrFourLimbs: e.target.checked })}/>{t.ataxia34Limbs}</label>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={cerebellar.needsAssistanceDueAtaxia} onChange={(e)=>setCerebellar({ ...cerebellar, needsAssistanceDueAtaxia: e.target.checked })}/>{t.needsAssistanceAtaxia}</label>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={cerebellar.inabilityCoordinatedMovements} onChange={(e)=>setCerebellar({ ...cerebellar, inabilityCoordinatedMovements: e.target.checked })}/>{t.unableCoordMovements}</label>
             </div>
           </FSRow>
 
           {/* S — Registry-style */}
           <FSRow code="S">
             <div className="space-y-2">
-              <div className="text-sm font-medium">Vibration</div>
+              <div className="text-sm font-medium">{t.vibration}</div>
               <div className="grid grid-cols-2 gap-2 items-center">
-                <label className="text-sm">Severity</label>
+                <label className="text-sm">{t.severity}</label>
                 <select className="border rounded-lg p-1 text-sm" value={sensory.vibSeverity} onChange={(e)=> setSensory({...sensory, vibSeverity: e.target.value as Severity})}>
-                  {['normal','mild','moderate','marked','absent'].map(s=> <option key={s} value={s}>{s}</option>)}
+                  <option value="normal">{t.sensNormal}</option>
+                  <option value="mild">{t.sensMild}</option>
+                  <option value="moderate">{t.sensModerate}</option>
+                  <option value="marked">{t.sensMarked}</option>
+                  <option value="absent">{t.sensAbsent}</option>
                 </select>
-                <label className="text-sm">Number of limbs (0–4)</label>
+                <label className="text-sm">{t.numLimbs}</label>
                 <input type="number" min={0} max={4} className="border rounded-lg p-1" value={sensory.vibCount} onChange={(e)=> setSensory({...sensory, vibCount: clamp(Number(e.target.value),0,4)})}/>
               </div>
               <p className="text-xs opacity-70">Mild 1–2 → 1; Moderate 1–2 → 2; Mild 3–4 → 2; Moderate 3–4 → 3; Marked 3–4 → 4; Absent → 5.</p>
             </div>
             <div className="space-y-2">
-              <div className="text-sm font-medium">Pain / Touch</div>
+              <div className="text-sm font-medium">{t.painTouch}</div>
               <div className="grid grid-cols-2 gap-2 items-center">
-                <label className="text-sm">Severity</label>
+                <label className="text-sm">{t.severity}</label>
                 <select className="border rounded-lg p-1 text-sm" value={sensory.ptSeverity} onChange={(e)=> setSensory({...sensory, ptSeverity: e.target.value as Severity})}>
-                  {['normal','mild','moderate','marked','absent'].map(s=> <option key={s} value={s}>{s}</option>)}
+                  <option value="normal">{t.sensNormal}</option>
+                  <option value="mild">{t.sensMild}</option>
+                  <option value="moderate">{t.sensModerate}</option>
+                  <option value="marked">{t.sensMarked}</option>
+                  <option value="absent">{t.sensAbsent}</option>
                 </select>
-                <label className="text-sm">Number of limbs (0–4)</label>
+                <label className="text-sm">{t.numLimbs}</label>
                 <input type="number" min={0} max={4} className="border rounded-lg p-1" value={sensory.ptCount} onChange={(e)=> setSensory({...sensory, ptCount: clamp(Number(e.target.value),0,4)})}/>
               </div>
               <p className="text-xs opacity-70">Totally absent in 1–2 or marked 3–4 → 5; Marked 1–2 → 4; Moderate 1–2/3–4 → 3; Mild 3–4 → 3; Mild 1–2 → 2.</p>
             </div>
             <div className="space-y-2 md:col-span-2">
-              <div className="text-sm font-medium">Joint Position</div>
+              <div className="text-sm font-medium">{t.jointPosition}</div>
               <div className="grid grid-cols-2 gap-2 items-center">
-                <label className="text-sm">Severity</label>
+                <label className="text-sm">{t.severity}</label>
                 <select className="border rounded-lg p-1 text-sm" value={sensory.jpSeverity} onChange={(e)=> setSensory({...sensory, jpSeverity: e.target.value as Severity})}>
-                  {['normal','mild','moderate','marked','absent'].map(s=> <option key={s} value={s}>{s}</option>)}
+                  <option value="normal">{t.sensNormal}</option>
+                  <option value="mild">{t.sensMild}</option>
+                  <option value="moderate">{t.sensModerate}</option>
+                  <option value="marked">{t.sensMarked}</option>
+                  <option value="absent">{t.sensAbsent}</option>
                 </select>
-                <label className="text-sm">Number of limbs (0–4)</label>
+                <label className="text-sm">{t.numLimbs}</label>
                 <input type="number" min={0} max={4} className="border rounded-lg p-1" value={sensory.jpCount} onChange={(e)=> setSensory({...sensory, jpCount: clamp(Number(e.target.value),0,4)})}/>
               </div>
               <p className="text-xs opacity-70">Any joint position affected → FS ≥2. Absent in ≥2 → 5. Marked 3–4 → 4. Moderate 1–2/3–4 → 3. Mild 1–2 → 2.</p>
@@ -1319,48 +1756,48 @@ export default function App() {
           {/* BB */}
           <FSRow code="BB">
             <div className="space-y-1">
-              <div className="text-sm font-medium">Bladder symptoms</div>
-              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={bb.mildUrge} onChange={(e)=>setBB({ ...bb, mildUrge: e.target.checked })}/>Mild urge</label>
-              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={bb.moderateUrge} onChange={(e)=>setBB({ ...bb, moderateUrge: e.target.checked })}/>Moderate urge</label>
-              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={bb.rareIncontinence} onChange={(e)=>setBB({ ...bb, rareIncontinence: e.target.checked })}/>Rare incontinence</label>
-              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={bb.frequentIncontinence} onChange={(e)=>setBB({ ...bb, frequentIncontinence: e.target.checked })}/>Frequent incontinence</label>
-              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={bb.intermittentCatheterization} onChange={(e)=>setBB({ ...bb, intermittentCatheterization: e.target.checked })}/>Intermittent catheterization</label>
-              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={bb.permanentCatheter} onChange={(e)=>setBB({ ...bb, permanentCatheter: e.target.checked })}/>Permanent catheter</label>
-              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={bb.lossBladderFunction} onChange={(e)=>setBB({ ...bb, lossBladderFunction: e.target.checked })}/>Loss of bladder function</label>
+              <div className="text-sm font-medium">{t.bladderSymptoms}</div>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={bb.mildUrge} onChange={(e)=>setBB({ ...bb, mildUrge: e.target.checked })}/>{t.mildUrge}</label>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={bb.moderateUrge} onChange={(e)=>setBB({ ...bb, moderateUrge: e.target.checked })}/>{t.moderateUrge}</label>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={bb.rareIncontinence} onChange={(e)=>setBB({ ...bb, rareIncontinence: e.target.checked })}/>{t.rareIncontinence}</label>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={bb.frequentIncontinence} onChange={(e)=>setBB({ ...bb, frequentIncontinence: e.target.checked })}/>{t.frequentIncontinence}</label>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={bb.intermittentCatheterization} onChange={(e)=>setBB({ ...bb, intermittentCatheterization: e.target.checked })}/>{t.intermittentCath}</label>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={bb.permanentCatheter} onChange={(e)=>setBB({ ...bb, permanentCatheter: e.target.checked })}/>{t.permanentCath}</label>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={bb.lossBladderFunction} onChange={(e)=>setBB({ ...bb, lossBladderFunction: e.target.checked })}/>{t.lossBladderFunction}</label>
             </div>
             <div className="space-y-1">
-              <div className="text-sm font-medium">Bowel symptoms</div>
-              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={bb.mildConstipation} onChange={(e)=>setBB({ ...bb, mildConstipation: e.target.checked })}/>Mild constipation</label>
-              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={bb.moderateConstipation} onChange={(e)=>setBB({ ...bb, moderateConstipation: e.target.checked })}/>Moderate constipation</label>
-              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={bb.severeConstipation} onChange={(e)=>setBB({ ...bb, severeConstipation: e.target.checked })}/>Severe constipation</label>
-              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={bb.needsHelpForBowelMovement} onChange={(e)=>setBB({ ...bb, needsHelpForBowelMovement: e.target.checked })}/>Needs help for bowel movement</label>
-              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={bb.bowelIncontinenceWeekly} onChange={(e)=>setBB({ ...bb, bowelIncontinenceWeekly: e.target.checked })}/>Bowel incontinence weekly</label>
-              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={bb.lossBowelFunction} onChange={(e)=>setBB({ ...bb, lossBowelFunction: e.target.checked })}/>Loss of bowel function</label>
+              <div className="text-sm font-medium">{t.bowelSymptoms}</div>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={bb.mildConstipation} onChange={(e)=>setBB({ ...bb, mildConstipation: e.target.checked })}/>{t.mildConstipation}</label>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={bb.moderateConstipation} onChange={(e)=>setBB({ ...bb, moderateConstipation: e.target.checked })}/>{t.moderateConstipation}</label>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={bb.severeConstipation} onChange={(e)=>setBB({ ...bb, severeConstipation: e.target.checked })}/>{t.severeConstipation}</label>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={bb.needsHelpForBowelMovement} onChange={(e)=>setBB({ ...bb, needsHelpForBowelMovement: e.target.checked })}/>{t.needsHelpBM}</label>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={bb.bowelIncontinenceWeekly} onChange={(e)=>setBB({ ...bb, bowelIncontinenceWeekly: e.target.checked })}/>{t.bowelIncontinenceWeekly}</label>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={bb.lossBowelFunction} onChange={(e)=>setBB({ ...bb, lossBowelFunction: e.target.checked })}/>{t.lossBowelFunction}</label>
             </div>
           </FSRow>
 
           {/* M */}
           <FSRow code="M">
             <div className="space-y-1">
-              <div className="text-sm font-medium">Fatigue</div>
-              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={mental.mildFatigue} onChange={(e)=>setMental({ ...mental, mildFatigue: e.target.checked })}/>Mild fatigue (affects &lt;50% of daily activity or work)</label>
-              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={mental.moderateToSevereFatigue} onChange={(e)=>setMental({ ...mental, moderateToSevereFatigue: e.target.checked })}/>Moderate to severe fatigue (affects ≥50% of daily activity or work)</label>
+              <div className="text-sm font-medium">{t.fatigue}</div>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={mental.mildFatigue} onChange={(e)=>setMental({ ...mental, mildFatigue: e.target.checked })}/>{t.mildFatigue}</label>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={mental.moderateToSevereFatigue} onChange={(e)=>setMental({ ...mental, moderateToSevereFatigue: e.target.checked })}/>{t.moderateSevereFatigue}</label>
             </div>
             <div className="space-y-1">
-              <div className="text-sm font-medium">Cognitive function</div>
-              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={mental.lightlyReducedCognition} onChange={(e)=>setMental({ ...mental, lightlyReducedCognition: e.target.checked })}/>Lightly reduced cognition</label>
-              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={mental.moderatelyReducedCognition} onChange={(e)=>setMental({ ...mental, moderatelyReducedCognition: e.target.checked })}/>Moderately reduced cognition (reduced test performance, oriented 3/3)</label>
-              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={mental.markedlyReducedCognition} onChange={(e)=>setMental({ ...mental, markedlyReducedCognition: e.target.checked })}/>Markedly reduced cognition (not oriented for 1-2 of 3 dimensions)</label>
-              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={mental.pronouncedDementia} onChange={(e)=>setMental({ ...mental, pronouncedDementia: e.target.checked })}/>Pronounced dementia (confusion, totally disoriented)</label>
+              <div className="text-sm font-medium">{t.cognitiveFunction}</div>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={mental.lightlyReducedCognition} onChange={(e)=>setMental({ ...mental, lightlyReducedCognition: e.target.checked })}/>{t.lightlyReducedCog}</label>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={mental.moderatelyReducedCognition} onChange={(e)=>setMental({ ...mental, moderatelyReducedCognition: e.target.checked })}/>{t.moderatelyReducedCog}</label>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={mental.markedlyReducedCognition} onChange={(e)=>setMental({ ...mental, markedlyReducedCognition: e.target.checked })}/>{t.markedlyReducedCog}</label>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={mental.pronouncedDementia} onChange={(e)=>setMental({ ...mental, pronouncedDementia: e.target.checked })}/>{t.pronouncedDementia}</label>
             </div>
           </FSRow>
 
           {/* Ambulation + Result + Copy */}
           <section className="grid gap-6 md:grid-cols-2">
             <section className="space-y-3 p-3 rounded-2xl bg-white border">
-              <h2 className="text-xl font-semibold">Ambulation</h2>
+              <h2 className="text-xl font-semibold">{t.ambulation}</h2>
               <div className="space-y-2">
-                <label className="block text-sm font-medium">Assistance requirement</label>
+                <label className="block text-sm font-medium">{t.assistanceReq}</label>
                 <div className="grid gap-2">
                   {assistanceLevels.map((a) => (
                     <label key={a.id} className="flex items-center gap-2">
@@ -1371,10 +1808,10 @@ export default function App() {
                 </div>
                 {assistance === "none" && (
                   <div className="space-y-1">
-                    <label className="block text-sm font-medium">Max walking distance without aid/rest (meters)</label>
+                    <label className="block text-sm font-medium">{t.maxWalkDist}</label>
                     <input type="number" className="w-full rounded-xl border p-2" value={distance} min={0} max={2000} step={10} onChange={(e) => setDistance(e.target.value)} />
                     <div className="text-xs opacity-70">
-                      Thresholds: ≥500m (EDSS based on FS), 300-499m (4.5), 200-299m (5.0), 100-199m (5.5), &lt;100m (6.0)
+                      {t.thresholds}
                     </div>
                   </div>
                 )}
@@ -1386,22 +1823,22 @@ export default function App() {
                 <div className="text-5xl font-black">{edss.toFixed(1)}</div>
                 <div className="text-sm uppercase tracking-wide opacity-60">EDSS</div>
               </div>
-              <div className="mt-2 text-sm opacity-80">{result.rationale}</div>
+              <div className="mt-2 text-sm opacity-80">{result.rationale.replace(/;\s*guarded by FS/g, '')}</div>
               <div className="mt-4 text-xs opacity-70">
-                <div>Raw FS: {countFS(0)}×0, {countFS(1)}×1, {countFS(2)}×2, {countFS(3)}×3, {countFS(4)}×4, {countFS(5)}×5, {countFS(6)}×6</div>
-                <div className="mt-1">Corrected FS (for EDSS): {countCorrectedFS(0)}×0, {countCorrectedFS(1)}×1, {countCorrectedFS(2)}×2, {countCorrectedFS(3)}×3, {countCorrectedFS(4)}×4, {countCorrectedFS(5)}×5</div>
+                <div>{t.rawFS}: {countFS(0)}×0, {countFS(1)}×1, {countFS(2)}×2, {countFS(3)}×3, {countFS(4)}×4, {countFS(5)}×5, {countFS(6)}×6</div>
+                <div className="mt-1">{t.correctedFS}: {countCorrectedFS(0)}×0, {countCorrectedFS(1)}×1, {countCorrectedFS(2)}×2, {countCorrectedFS(3)}×3, {countCorrectedFS(4)}×4, {countCorrectedFS(5)}×5</div>
               </div>
 
               <div className="mt-6 p-3 rounded-xl border bg-gray-50">
-                <div className="text-xs font-semibold mb-2">Quick Summary</div>
+                <div className="text-xs font-semibold mb-2">{t.quickSummary}</div>
                 <pre className="whitespace-pre-wrap text-xs">{summary}</pre>
-                <button onClick={copySummary} className="mt-2 px-3 py-2 rounded-xl border text-sm hover:bg-gray-100">{copied ? 'Copied ✓' : 'Copy summary'}</button>
+                <button onClick={copySummary} className="mt-2 px-3 py-2 rounded-xl border text-sm hover:bg-gray-100">{copied ? t.copied : t.copySummary}</button>
               </div>
 
               <div className="mt-4 p-3 rounded-xl border bg-gray-50">
-                <div className="text-xs font-semibold mb-2">Full Examination Text</div>
+                <div className="text-xs font-semibold mb-2">{t.fullExamText}</div>
                 <pre className="whitespace-pre-wrap text-xs">{examinationText}</pre>
-                <button onClick={copyExamination} className="mt-2 px-3 py-2 rounded-xl border text-sm hover:bg-gray-100">{copiedExam ? 'Copied ✓' : 'Copy examination text'}</button>
+                <button onClick={copyExamination} className="mt-2 px-3 py-2 rounded-xl border text-sm hover:bg-gray-100">{copiedExam ? t.copied : t.copyExamText}</button>
               </div>
             </section>
           </section>
