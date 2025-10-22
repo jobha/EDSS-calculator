@@ -1,5 +1,7 @@
 /* src/index.css */
 @import "tailwindcss";
 
-/* (optional) your own styles can go here afterwards */
-/* avoid @apply for now until it compiles once */
+/* Force sans-serif font on all select and option elements */
+select, option {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+}

@@ -8,7 +8,6 @@ type Language = 'en' | 'no';
 const translations = {
   en: {
     title: "EDSS Calculator",
-    version: "Version 0.1",
     reset: "Reset",
     overrideScore: "Override score",
     quickSummary: "Quick Summary",
@@ -94,6 +93,14 @@ const translations = {
     clonus: "Clonus",
     spasticGait: "Spastic gait",
     fatigability: "Fatigability",
+    // Movement components for narrative formatting
+    movements: {
+      shoulder: "shoulder", elbow: "elbow", wrist: "wrist", finger: "finger",
+      hip: "hip", knee: "knee", ankle: "ankle",
+      abduction: "abduction", externalRotation: "external rotation",
+      flexion: "flexion", extension: "extension",
+      dorsiflexion: "dorsiflexion", plantarflexion: "plantarflexion"
+    },
     // Cerebellar
     minimalImpact: "Minimal impact",
     functionalImpact: "Functional impact / severe",
@@ -163,6 +170,7 @@ const translations = {
     rightEye: "Right eye",
     noVisualFieldDeficits: "No visual field deficits",
     visualFieldDeficitText: "visual field deficit",
+    visualExamNormal: "Normal visual acuity, no visual field deficits",
     brainstemExamNormal: "Brainstem examination normal",
     brainstem: "Brainstem",
     eyeMotilityImpairment: "eye motility impairment",
@@ -172,7 +180,11 @@ const translations = {
     hearingImpairment: "hearing impairment",
     motorExamination: "Motor examination",
     normal: "normal",
-    withFullStrength: "with full strength (grade 5/5) throughout and no upper motor neuron signs",
+    withFullStrength: "strength throughout and no upper motor neuron signs",
+    reducedStrength: "Reduced strength",
+    grade: "grade",
+    for: "for",
+    and: "and",
     bilaterally: "bilaterally",
     right: "right",
     left: "left",
@@ -190,7 +202,7 @@ const translations = {
     fallTendencyRomberg: "fall tendency on Romberg",
     tandemGaitDifficulty: "tandem gait difficulty",
     mildCerebellarSignsNoFunction: "mild cerebellar signs without functional impact",
-    sensoryExaminationNormal: "Sensory examination normal",
+    sensoryExaminationNormal: "Normal sensory",
     sensoryExamination: "Sensory examination",
     vibrationSenseDeficit: "vibration sense deficit in",
     painTouchDeficit: "pain/touch deficit in",
@@ -209,7 +221,6 @@ const translations = {
   },
   no: {
     title: "EDSS Kalkulator",
-    version: "Versjon 0.1",
     reset: "Tilbakestill",
     overrideScore: "Overstyr skår",
     quickSummary: "Hurtigsammendrag",
@@ -295,6 +306,14 @@ const translations = {
     clonus: "Klonus",
     spasticGait: "Spastisk gange",
     fatigability: "Utmattbarhet",
+    // Movement components for narrative formatting
+    movements: {
+      shoulder: "skulder", elbow: "albue", wrist: "håndledd", finger: "finger",
+      hip: "hofte", knee: "kne", ankle: "ankel",
+      abduction: "abduksjon", externalRotation: "utadrotasjon",
+      flexion: "fleksjon", extension: "ekstensjon",
+      dorsiflexion: "dorsalfleksjon", plantarflexion: "plantarfleksjon"
+    },
     // Cerebellar
     minimalImpact: "Minimal påvirkning",
     functionalImpact: "Funksjonsnedsettelse / alvorlig",
@@ -303,7 +322,7 @@ const translations = {
     tandemDifficulty: "Vansker med tandemgang/linjegang",
     mildCerebellarSigns: "Milde cerebellære tegn uten funksjonsnedsettelse",
     limbAtaxiaFunction: "Moderat ekstremitetsataksi som påvirker funksjon",
-    gaitAtaxia: "Gangata ksi",
+    gaitAtaxia: "Gangataksi",
     truncalAtaxia: "Trunkal ataksi (øyne åpne)",
     ataxia34Limbs: "Uttalt ataksi i 3–4 ekstremiteter",
     needsAssistanceAtaxia: "Trenger hjelp på grunn av ataksi",
@@ -364,6 +383,7 @@ const translations = {
     rightEye: "Høyre øye",
     noVisualFieldDeficits: "Ingen synsfeltutfall",
     visualFieldDeficitText: "synsfeltutfall",
+    visualExamNormal: "Normal visus, ingen synsfeltdefekter",
     brainstemExamNormal: "Hjernestammeundersøkelse normal",
     brainstem: "Hjernestamme",
     eyeMotilityImpairment: "øyemotilitetssvikt",
@@ -373,14 +393,18 @@ const translations = {
     hearingImpairment: "hørselssvekkelse",
     motorExamination: "Motorisk undersøkelse",
     normal: "normal",
-    withFullStrength: "med full styrke (grad 5/5) gjennomgående og ingen øvre motornevronfunn",
+    withFullStrength: "kraft gjennomgående og ingen øvre motornevronfunn",
+    reducedStrength: "Redusert kraft",
+    grade: "grad",
+    for: "for",
+    and: "og",
     bilaterally: "bilateralt",
     right: "høyre",
     left: "venstre",
     positiveBarbinskiSign: "positiv Babinski-refleks",
     spasticGaitText: "spastisk gange",
-    cerebellarExamNormal: "Cerebellar undersøkelse normal",
-    cerebellar: "Cerebellar",
+    cerebellarExamNormal: "Cerebellær undersøkelse normal",
+    cerebellar: "Cerebellær",
     unableCoordMovementsText: "ute av stand til å utføre koordinerte bevegelser",
     ataxiaIn34Limbs: "ataksi i 3-4 ekstremiteter",
     needsAssistanceAtaxiaText: "trenger hjelp på grunn av ataksi",
@@ -391,7 +415,7 @@ const translations = {
     fallTendencyRomberg: "falltendens ved Romberg",
     tandemGaitDifficulty: "vansker med tandemgang",
     mildCerebellarSignsNoFunction: "milde cerebellære tegn uten funksjonsnedsettelse",
-    sensoryExaminationNormal: "Sensorisk undersøkelse normal",
+    sensoryExaminationNormal: "Normal sensorikk",
     sensoryExamination: "Sensorisk undersøkelse",
     vibrationSenseDeficit: "vibrasjonssansutfall i",
     painTouchDeficit: "smerte/berøringsutfall i",
@@ -1145,18 +1169,29 @@ export default function App() {
 
   // Full examination text (narrative format with normal findings)
   const examinationText = useMemo(() => {
+    // Helper function to join array items with commas and "and" before last item
+    const joinWithAnd = (items: string[], andWord: string): string => {
+      if (items.length === 0) return '';
+      if (items.length === 1) return items[0];
+      if (items.length === 2) return `${items[0]} ${andWord} ${items[1]}`;
+      return items.slice(0, -1).join(', ') + ` ${andWord} ${items[items.length - 1]}`;
+    };
+
     const sections: string[] = [];
 
     // Visual
     const leftAcuity = formatEyeAcuity(visual.leftEyeAcuity);
     const rightAcuity = formatEyeAcuity(visual.rightEyeAcuity);
-    let visualText = `${t.visualAcuity}: ${t.leftEye} ${leftAcuity}, ${t.rightEye} ${rightAcuity}.`;
-    if (visual.visualFieldDeficit !== 'none') {
-      visualText += ` ${visual.visualFieldDeficit.charAt(0).toUpperCase() + visual.visualFieldDeficit.slice(1)} ${t.visualFieldDeficitText}.`;
+    if (visual.leftEyeAcuity === "1.0" && visual.rightEyeAcuity === "1.0" && visual.visualFieldDeficit === 'none') {
+      sections.push(t.visualExamNormal + '.');
     } else {
-      visualText += ` ${t.noVisualFieldDeficits}.`;
+      let visualText = `${t.leftEye} ${leftAcuity}, ${t.rightEye} ${rightAcuity}`;
+      if (visual.visualFieldDeficit !== 'none') {
+        visualText += `, ${visual.visualFieldDeficit} ${t.visualFieldDeficitText}`;
+      }
+      visualText += '.';
+      sections.push(visualText);
     }
-    sections.push(visualText);
 
     // Brainstem
     const bsParts: string[] = [];
@@ -1167,51 +1202,38 @@ export default function App() {
     if (brainstem.hearingLevel > 0) bsParts.push(`${t.hearingImpairment} (${t.level} ${brainstem.hearingLevel})`);
     if (brainstem.dysarthriaLevel > 0) bsParts.push(`${t.dysarthria.toLowerCase()} (${t.level} ${brainstem.dysarthriaLevel})`);
     if (brainstem.dysphagiaLevel > 0) bsParts.push(`${t.dysphagia.toLowerCase()} (${t.level} ${brainstem.dysphagiaLevel})`);
-    const bsText = bsParts.length > 0
-      ? `${t.brainstem}: ${bsParts.join(', ')}.`
-      : `${t.brainstemExamNormal}.`;
-    sections.push(bsText);
-
-    // Pyramidal - list specific weakness findings
-    const weaknessFindings: string[] = [];
-
-    // Upper limbs
-    const upperMuscles = [
-      { name: t.shoulderAbduction.toLowerCase(), r: pyramidal.shoulderAbductionR, l: pyramidal.shoulderAbductionL },
-      { name: t.shoulderExternalRotation.toLowerCase(), r: pyramidal.shoulderExternalRotationR, l: pyramidal.shoulderExternalRotationL },
-      { name: t.elbowFlexion.toLowerCase(), r: pyramidal.elbowFlexionR, l: pyramidal.elbowFlexionL },
-      { name: t.elbowExtension.toLowerCase(), r: pyramidal.elbowExtensionR, l: pyramidal.elbowExtensionL },
-      { name: t.wristExtension.toLowerCase(), r: pyramidal.wristExtensionR, l: pyramidal.wristExtensionL },
-      { name: t.fingerAbduction.toLowerCase(), r: pyramidal.fingerAbductionR, l: pyramidal.fingerAbductionL },
-    ];
-
-    // Lower limbs
-    const lowerMuscles = [
-      { name: t.hipFlexion.toLowerCase(), r: pyramidal.hipFlexionR, l: pyramidal.hipFlexionL },
-      { name: t.hipAbduction.toLowerCase(), r: pyramidal.hipAbductionR, l: pyramidal.hipAbductionL },
-      { name: t.kneeExtension.toLowerCase(), r: pyramidal.kneeExtensionR, l: pyramidal.kneeExtensionL },
-      { name: t.kneeFlexion.toLowerCase(), r: pyramidal.kneeFlexionR, l: pyramidal.kneeFlexionL },
-      { name: t.ankleDorsiflexion.toLowerCase(), r: pyramidal.ankleDorsiflexionR, l: pyramidal.ankleDorsiflexionL },
-      { name: t.anklePlantarflexion.toLowerCase(), r: pyramidal.anklePlantarflexionR, l: pyramidal.anklePlantarflexionL },
-    ];
-
-    // Check for weakness in upper limbs
-    for (const muscle of upperMuscles) {
-      if (muscle.r < 5 && muscle.l < 5 && muscle.r === muscle.l) {
-        weaknessFindings.push(`${muscle.name} ${muscle.r}/5 ${t.bilaterally}`);
-      } else {
-        if (muscle.r < 5) weaknessFindings.push(`${t.right} ${muscle.name} ${muscle.r}/5`);
-        if (muscle.l < 5) weaknessFindings.push(`${t.left} ${muscle.name} ${muscle.l}/5`);
-      }
+    if (bsParts.length > 0) {
+      sections.push(bsParts.join(', ') + '.');
+    } else {
+      sections.push(t.brainstemExamNormal + '.');
     }
 
-    // Check for weakness in lower limbs
-    for (const muscle of lowerMuscles) {
+    // Pyramidal - list specific weakness findings with new narrative format
+    const weaknessFindings: string[] = [];
+
+    // Define all muscles with structured components
+    const allMuscles = [
+      { bodyPart: t.movements.shoulder, movement: t.movements.abduction, r: pyramidal.shoulderAbductionR, l: pyramidal.shoulderAbductionL },
+      { bodyPart: t.movements.shoulder, movement: t.movements.externalRotation, r: pyramidal.shoulderExternalRotationR, l: pyramidal.shoulderExternalRotationL },
+      { bodyPart: t.movements.elbow, movement: t.movements.flexion, r: pyramidal.elbowFlexionR, l: pyramidal.elbowFlexionL },
+      { bodyPart: t.movements.elbow, movement: t.movements.extension, r: pyramidal.elbowExtensionR, l: pyramidal.elbowExtensionL },
+      { bodyPart: t.movements.wrist, movement: t.movements.extension, r: pyramidal.wristExtensionR, l: pyramidal.wristExtensionL },
+      { bodyPart: t.movements.finger, movement: t.movements.abduction, r: pyramidal.fingerAbductionR, l: pyramidal.fingerAbductionL },
+      { bodyPart: t.movements.hip, movement: t.movements.flexion, r: pyramidal.hipFlexionR, l: pyramidal.hipFlexionL },
+      { bodyPart: t.movements.hip, movement: t.movements.abduction, r: pyramidal.hipAbductionR, l: pyramidal.hipAbductionL },
+      { bodyPart: t.movements.knee, movement: t.movements.extension, r: pyramidal.kneeExtensionR, l: pyramidal.kneeExtensionL },
+      { bodyPart: t.movements.knee, movement: t.movements.flexion, r: pyramidal.kneeFlexionR, l: pyramidal.kneeFlexionL },
+      { bodyPart: t.movements.ankle, movement: t.movements.dorsiflexion, r: pyramidal.ankleDorsiflexionR, l: pyramidal.ankleDorsiflexionL },
+      { bodyPart: t.movements.ankle, movement: t.movements.plantarflexion, r: pyramidal.anklePlantarflexionR, l: pyramidal.anklePlantarflexionL },
+    ];
+
+    // Generate weakness findings with new format: "grad X for [movement] [side] [bodyPart]"
+    for (const muscle of allMuscles) {
       if (muscle.r < 5 && muscle.l < 5 && muscle.r === muscle.l) {
-        weaknessFindings.push(`${muscle.name} ${muscle.r}/5 ${t.bilaterally}`);
+        weaknessFindings.push(`${t.grade} ${muscle.r} ${t.for} ${muscle.movement} ${t.bilaterally} ${muscle.bodyPart}`);
       } else {
-        if (muscle.r < 5) weaknessFindings.push(`${t.right} ${muscle.name} ${muscle.r}/5`);
-        if (muscle.l < 5) weaknessFindings.push(`${t.left} ${muscle.name} ${muscle.l}/5`);
+        if (muscle.r < 5) weaknessFindings.push(`${t.grade} ${muscle.r} ${t.for} ${muscle.movement} ${t.right} ${muscle.bodyPart}`);
+        if (muscle.l < 5) weaknessFindings.push(`${t.grade} ${muscle.l} ${t.for} ${muscle.movement} ${t.left} ${muscle.bodyPart}`);
       }
     }
 
@@ -1222,16 +1244,17 @@ export default function App() {
     if (pyramidal.spasticGait) umnSigns.push(t.spasticGaitText);
     if (pyramidal.fatigability) umnSigns.push(t.fatigability.toLowerCase());
 
-    let pText = `${t.motorExamination}: `;
     if (weaknessFindings.length > 0 || umnSigns.length > 0) {
       const allFindings: string[] = [];
-      if (weaknessFindings.length > 0) allFindings.push(weaknessFindings.join(', '));
+      if (weaknessFindings.length > 0) {
+        // Start with "Reduced strength" and then list the findings with "and" before last item
+        allFindings.push(`${t.reducedStrength} ${joinWithAnd(weaknessFindings, t.and)}`);
+      }
       if (umnSigns.length > 0) allFindings.push(umnSigns.join(', '));
-      pText += allFindings.join('; ') + '.';
+      sections.push(allFindings.join('; ') + '.');
     } else {
-      pText += `${t.normal} ${t.withFullStrength}.`;
+      sections.push(`${t.normal} ${t.withFullStrength}.`.charAt(0).toUpperCase() + `${t.normal} ${t.withFullStrength}.`.slice(1));
     }
-    sections.push(pText);
 
     // Cerebellar
     const cParts: string[] = [];
@@ -1245,10 +1268,11 @@ export default function App() {
     if (cerebellar.rombergFallTendency) cParts.push(t.fallTendencyRomberg);
     if (cerebellar.lineWalkDifficulty) cParts.push(t.tandemGaitDifficulty);
     if (cerebellar.mildCerebellarSignsNoFunction) cParts.push(t.mildCerebellarSignsNoFunction);
-    const cText = cParts.length > 0
-      ? `${t.cerebellar}: ${cParts.join(', ')}.`
-      : `${t.cerebellarExamNormal}.`;
-    sections.push(cText);
+    if (cParts.length > 0) {
+      sections.push(cParts.join(', ') + '.');
+    } else {
+      sections.push(t.cerebellarExamNormal + '.');
+    }
 
     // Sensory
     const sParts: string[] = [];
@@ -1262,10 +1286,11 @@ export default function App() {
     if (sensory.jpSeverity !== 'normal' && sensory.jpCount > 0) {
       sParts.push(`${getSensText(sensory.jpSeverity)} ${t.jointPositionDeficit} ${sensory.jpCount} ${t.limbS}`);
     }
-    const sText = sParts.length > 0
-      ? `${t.sensoryExamination}: ${sParts.join(', ')}.`
-      : `${t.sensoryExaminationNormal}.`;
-    sections.push(sText);
+    if (sParts.length > 0) {
+      sections.push(sParts.join(', ') + '.');
+    } else {
+      sections.push(t.sensoryExaminationNormal + '.');
+    }
 
     // Bowel/Bladder
     const bladderParts: string[] = [];
@@ -1285,16 +1310,14 @@ export default function App() {
     else if (bb.moderateConstipation) bowelParts.push(t.moderateConstipation.toLowerCase());
     else if (bb.mildConstipation) bowelParts.push(t.mildConstipation.toLowerCase());
 
-    let bbText = '';
     if (bladderParts.length > 0 || bowelParts.length > 0) {
       const parts = [];
-      if (bladderParts.length > 0) parts.push(`${t.bladderFunction}: ${bladderParts.join(', ')}`);
-      if (bowelParts.length > 0) parts.push(`${t.bowelFunction}: ${bowelParts.join(', ')}`);
-      bbText = parts.join('; ') + '.';
+      if (bladderParts.length > 0) parts.push(bladderParts.join(', '));
+      if (bowelParts.length > 0) parts.push(bowelParts.join(', '));
+      sections.push(parts.join('; ') + '.');
     } else {
-      bbText = `${t.bowelBladderNormal}.`;
+      sections.push(t.bowelBladderNormal + '.');
     }
-    sections.push(bbText);
 
     // Mental
     const cogParts: string[] = [];
@@ -1307,25 +1330,25 @@ export default function App() {
     if (mental.moderateToSevereFatigue) fatigueParts.push(t.moderateSevereFatigue.toLowerCase());
     else if (mental.mildFatigue) fatigueParts.push(t.mildFatigue.toLowerCase());
 
-    let mText = '';
     if (cogParts.length > 0 || fatigueParts.length > 0) {
       const parts = [];
-      if (cogParts.length > 0) parts.push(`${t.cognitive}: ${cogParts.join(', ')}`);
-      if (fatigueParts.length > 0) parts.push(`${fatigueParts.join(', ')}`);
-      mText = parts.join('; ') + '.';
+      if (cogParts.length > 0) parts.push(cogParts.join(', '));
+      if (fatigueParts.length > 0) parts.push(fatigueParts.join(', '));
+      sections.push(parts.join('; ') + '.');
     } else {
-      mText = `${t.cognitiveNormal}.`;
+      sections.push(t.cognitiveNormal + '.');
     }
-    sections.push(mText);
 
     // Ambulation
-    const ambText = assistance === 'none'
-      ? `${t.ambulationText}: ${t.walks} ${parsedDistance ?? t.unknown} ${t.meters} ${t.withoutAssistance}.`
-      : `${t.ambulationText}: ${assistanceLevels.find(a => a.id === assistance)?.label || assistance}.`;
-    sections.push(ambText);
+    if (assistance === 'none') {
+      sections.push(`${t.walks} ${parsedDistance ?? t.unknown} ${t.meters} ${t.withoutAssistance}.`.charAt(0).toUpperCase() + `${t.walks} ${parsedDistance ?? t.unknown} ${t.meters} ${t.withoutAssistance}.`.slice(1));
+    } else {
+      const assistLabel = assistanceLevels.find(a => a.id === assistance)?.label || assistance;
+      sections.push(assistLabel.charAt(0).toUpperCase() + assistLabel.slice(1) + '.');
+    }
 
     // EDSS
-    sections.push(`\nEDSS: ${edss.toFixed(1)}`);
+    sections.push(`EDSS: ${edss.toFixed(1)}`);
 
     return sections.join(' ');
   }, [visual, brainstem, pyramidal, cerebellar, sensory, bb, mental, assistance, parsedDistance, edss, t, assistanceLevels]);
@@ -1452,7 +1475,6 @@ export default function App() {
           <header className="flex items-center justify-between">
             <h1 className="text-2xl md:text-3xl font-bold">{t.title}</h1>
             <div className="flex items-center gap-4">
-              <div className="text-sm opacity-60">Jonas Bull Haugsøen • {t.version}</div>
               <select
                 value={language}
                 onChange={(e) => setLanguage(e.target.value as Language)}
@@ -1717,7 +1739,6 @@ export default function App() {
                 <label className="text-sm">{t.numLimbs}</label>
                 <input type="number" min={0} max={4} className="border rounded-lg p-1" value={sensory.vibCount} onChange={(e)=> setSensory({...sensory, vibCount: clamp(Number(e.target.value),0,4)})}/>
               </div>
-              <p className="text-xs opacity-70">Mild 1–2 → 1; Moderate 1–2 → 2; Mild 3–4 → 2; Moderate 3–4 → 3; Marked 3–4 → 4; Absent → 5.</p>
             </div>
             <div className="space-y-2">
               <div className="text-sm font-medium">{t.painTouch}</div>
@@ -1733,7 +1754,6 @@ export default function App() {
                 <label className="text-sm">{t.numLimbs}</label>
                 <input type="number" min={0} max={4} className="border rounded-lg p-1" value={sensory.ptCount} onChange={(e)=> setSensory({...sensory, ptCount: clamp(Number(e.target.value),0,4)})}/>
               </div>
-              <p className="text-xs opacity-70">Totally absent in 1–2 or marked 3–4 → 5; Marked 1–2 → 4; Moderate 1–2/3–4 → 3; Mild 3–4 → 3; Mild 1–2 → 2.</p>
             </div>
             <div className="space-y-2 md:col-span-2">
               <div className="text-sm font-medium">{t.jointPosition}</div>
@@ -1749,7 +1769,6 @@ export default function App() {
                 <label className="text-sm">{t.numLimbs}</label>
                 <input type="number" min={0} max={4} className="border rounded-lg p-1" value={sensory.jpCount} onChange={(e)=> setSensory({...sensory, jpCount: clamp(Number(e.target.value),0,4)})}/>
               </div>
-              <p className="text-xs opacity-70">Any joint position affected → FS ≥2. Absent in ≥2 → 5. Marked 3–4 → 4. Moderate 1–2/3–4 → 3. Mild 1–2 → 2.</p>
             </div>
           </FSRow>
 
