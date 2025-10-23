@@ -6,7 +6,7 @@ import { assistanceLevelIds } from "./types/edss";
 import { clamp, roundToHalf } from "./utils/helpers";
 import { formatEyeAcuity } from "./utils/formatting";
 import { suggestV, suggestBS, suggestP, suggestC, suggestS, suggestBB, suggestM } from "./utils/scoring";
-import { computeEDSSFromInputs, convertVisualForEDSS, convertBBForEDSS, correctedFS, computeAmbulationEDSS } from "./utils/edss";
+import { computeEDSSFromInputs, convertVisualForEDSS, convertBBForEDSS, correctedFS, computeAmbulationEDSS, computeLowEDSS_Neurostatus } from "./utils/edss";
 import { FSRow } from "./components/FSRow";
 import { validateEDSSInputs, type ValidationWarning } from "./utils/validation";
 
@@ -149,6 +149,48 @@ export default function App() {
 
   const result = useMemo(() => computeEDSSFromInputs(fs, assistance, parsedDistance), [assistance, parsedDistance, fs]);
   const edss = useMemo(() => roundToHalf(result.edss), [result]);
+
+  // Separate FS-based and ambulation-based scores for modal display
+  const fsBasedEDSS = useMemo(() => {
+    const correctedFSValues = correctedFS(fs);
+    return computeLowEDSS_Neurostatus(correctedFSValues);
+  }, [fs]);
+
+  const ambulationBasedEDSS = useMemo(() => {
+    return computeAmbulationEDSS(assistance, parsedDistance);
+  }, [assistance, parsedDistance]);
+
+  // Determine which table row matches the current patient's FS pattern
+  const matchingFSRowIndex = useMemo(() => {
+    if (!fsBasedEDSS) return -1;
+    const correctedFSValues = correctedFS(fs);
+    const v = Object.values(correctedFSValues);
+    const cnt = (n: number) => v.filter((x) => x === n).length;
+    const max = Math.max(...v);
+    const cnt1 = cnt(1), cnt2 = cnt(2), cnt3 = cnt(3), cnt4 = cnt(4), cnt5 = cnt(5);
+
+    if (v.every((x) => x === 0)) return 0;
+    if (cnt1 === 1 && max === 1) return 1;
+    if (cnt1 > 1 && max === 1) return 2;
+    if (cnt2 === 1 && max === 2) return 3;
+    if (cnt2 === 2 && max === 2) return 4;
+    if (cnt2 === 0 && cnt3 === 1 && max === 3) return 5;
+    if (cnt2 >= 3 && cnt2 <= 4 && max === 2) return 6;
+    if (cnt2 >= 1 && cnt2 <= 2 && cnt3 === 1 && max === 3) return 7;
+    if (cnt2 === 0 && cnt3 === 2 && max === 3) return 8;
+    if (cnt2 === 5 && max === 2) return 9;
+    if (cnt2 === 0 && cnt3 === 0 && cnt4 === 1 && max === 4) return 10;
+    if (cnt2 === 0 && cnt3 >= 3 && cnt3 <= 4 && max === 3) return 11;
+    if (cnt2 > 0 && cnt3 >= 2 && cnt3 <= 4 && max === 3) return 12;
+    if (cnt2 > 5 && max === 2) return 13;
+    if (cnt3 === 5 && max === 3) return 14;
+    if (cnt3 >= 1 && cnt3 <= 2 && cnt4 === 1 && max === 4) return 15;
+    if (cnt2 >= 1 && cnt4 === 1 && max === 4) return 16;
+    if (cnt5 >= 1) return 17;
+    if (cnt4 >= 2) return 18;
+    if (cnt3 >= 6) return 19;
+    return -1;
+  }, [fsBasedEDSS, fs]);
 
   // Validation warnings
   const warnings = useMemo(() =>
@@ -1281,238 +1323,272 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Step 3: Ambulation Assessment */}
-              <div className="p-4 rounded-xl bg-amber-50 border border-amber-200">
-                <div className="font-semibold text-sm mb-2">{t.step} 3: {t.ambulationAssessment}</div>
-                <div className="text-sm">
-                  {assistance === 'none' && parsedDistance !== null && parsedDistance >= 500 ? (
-                    <div>• {t.walks500PlusUnaided}</div>
-                  ) : assistance === 'none' && parsedDistance !== null ? (
-                    <div>• {t.walksUnaidedDistance.replace('{distance}', parsedDistance.toString())} → {translateRationale(computeAmbulationEDSS(assistance, parsedDistance)?.rationale || '')}</div>
-                  ) : assistance !== 'none' ? (
-                    <div>• {translateRationale(computeAmbulationEDSS(assistance, parsedDistance)?.rationale || '')}</div>
+              {/* Step 3: FS-Based Score */}
+              <div className="p-4 rounded-xl bg-blue-50 border border-blue-200">
+                <div className="font-semibold text-sm mb-2">{t.step} 3: {t.fsBasedScore}</div>
+                <div className="text-sm mb-3">
+                  {fsBasedEDSS ? (
+                    <div className="font-mono text-lg font-bold">{fsBasedEDSS.edss.toFixed(1)}</div>
                   ) : (
-                    <div>• {t.noDistanceSpecified}</div>
+                    <div className="text-gray-600">N/A (all FS = 0)</div>
+                  )}
+                </div>
+
+                {/* FS Pattern Table */}
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+                  <div className="font-semibold text-xs mb-2">{t.fsPatternsTableTitle}</div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs border-collapse">
+                      <thead>
+                        <tr className="bg-purple-100">
+                          <th className="border border-purple-300 px-2 py-1 text-center font-semibold">FS 0</th>
+                          <th className="border border-purple-300 px-2 py-1 text-center font-semibold">FS 1</th>
+                          <th className="border border-purple-300 px-2 py-1 text-center font-semibold">FS 2</th>
+                          <th className="border border-purple-300 px-2 py-1 text-center font-semibold">FS 3</th>
+                          <th className="border border-purple-300 px-2 py-1 text-center font-semibold">FS 4</th>
+                          <th className="border border-purple-300 px-2 py-1 text-center font-semibold">FS 5</th>
+                          <th className="border border-purple-300 px-2 py-1 text-center font-semibold">FS 6</th>
+                          <th className="border border-purple-300 px-2 py-1 text-center font-semibold">EDSS</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white">
+                        <tr className={matchingFSRowIndex === 0 ? "bg-yellow-100 font-bold" : ""}>
+                          <td className="border border-purple-200 px-2 py-1 text-center">{t.all}</td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1 text-center font-mono">0.0</td>
+                        </tr>
+                        <tr className={matchingFSRowIndex === 1 ? "bg-yellow-100 font-bold" : ""}>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1 text-center">1</td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1 text-center font-mono">1.0</td>
+                        </tr>
+                        <tr className={matchingFSRowIndex === 2 ? "bg-yellow-100 font-bold" : ""}>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1 text-center">&gt;1</td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1 text-center font-mono">1.5</td>
+                        </tr>
+                        <tr className={matchingFSRowIndex === 3 ? "bg-yellow-100 font-bold" : ""}>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1 text-center">1</td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1 text-center font-mono">2.0</td>
+                        </tr>
+                        <tr className={matchingFSRowIndex === 4 ? "bg-yellow-100 font-bold" : ""}>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1 text-center">2</td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1 text-center font-mono">2.5</td>
+                        </tr>
+                        <tr className={matchingFSRowIndex === 5 ? "bg-yellow-100 font-bold" : ""}>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1 text-center">0</td>
+                          <td className="border border-purple-200 px-2 py-1 text-center">1</td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1 text-center font-mono">3.0</td>
+                        </tr>
+                        <tr className={matchingFSRowIndex === 6 ? "bg-yellow-100 font-bold" : ""}>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1 text-center">3-4</td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1 text-center font-mono">3.0</td>
+                        </tr>
+                        <tr className={matchingFSRowIndex === 7 ? "bg-yellow-100 font-bold" : ""}>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1 text-center">1-2</td>
+                          <td className="border border-purple-200 px-2 py-1 text-center">1</td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1 text-center font-mono">3.5</td>
+                        </tr>
+                        <tr className={matchingFSRowIndex === 8 ? "bg-yellow-100 font-bold" : ""}>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1 text-center">0</td>
+                          <td className="border border-purple-200 px-2 py-1 text-center">2</td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1 text-center font-mono">3.5</td>
+                        </tr>
+                        <tr className={matchingFSRowIndex === 9 ? "bg-yellow-100 font-bold" : ""}>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1 text-center">5</td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1 text-center font-mono">3.5</td>
+                        </tr>
+                        <tr className={matchingFSRowIndex === 10 ? "bg-yellow-100 font-bold" : ""}>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1 text-center">0</td>
+                          <td className="border border-purple-200 px-2 py-1 text-center">0</td>
+                          <td className="border border-purple-200 px-2 py-1 text-center">1</td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1 text-center font-mono">4.0</td>
+                        </tr>
+                        <tr className={matchingFSRowIndex === 11 ? "bg-yellow-100 font-bold" : ""}>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1 text-center">0</td>
+                          <td className="border border-purple-200 px-2 py-1 text-center">3-4</td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1 text-center font-mono">4.0</td>
+                        </tr>
+                        <tr className={matchingFSRowIndex === 12 ? "bg-yellow-100 font-bold" : ""}>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1 text-center">&gt;0</td>
+                          <td className="border border-purple-200 px-2 py-1 text-center">2-4</td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1 text-center font-mono">4.0</td>
+                        </tr>
+                        <tr className={matchingFSRowIndex === 13 ? "bg-yellow-100 font-bold" : ""}>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1 text-center">&gt;5</td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1 text-center font-mono">4.0</td>
+                        </tr>
+                        <tr className={matchingFSRowIndex === 14 ? "bg-yellow-100 font-bold" : ""}>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1 text-center">5</td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1 text-center font-mono">4.5</td>
+                        </tr>
+                        <tr className={matchingFSRowIndex === 15 ? "bg-yellow-100 font-bold" : ""}>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1 text-center">1-2</td>
+                          <td className="border border-purple-200 px-2 py-1 text-center">1</td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1 text-center font-mono">4.5</td>
+                        </tr>
+                        <tr className={matchingFSRowIndex === 16 ? "bg-yellow-100 font-bold" : ""}>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1 text-center">&gt;=1</td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1 text-center">1</td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1 text-center font-mono">4.5</td>
+                        </tr>
+                        <tr className={matchingFSRowIndex === 17 ? "bg-yellow-100 font-bold" : ""}>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1 text-center">&gt;=1</td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1 text-center font-mono">5.0</td>
+                        </tr>
+                        <tr className={matchingFSRowIndex === 18 ? "bg-yellow-100 font-bold" : ""}>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1 text-center">&gt;=2</td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1 text-center font-mono">5.0</td>
+                        </tr>
+                        <tr className={matchingFSRowIndex === 19 ? "bg-yellow-100 font-bold" : ""}>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1 text-center">&gt;=6</td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1 text-center font-mono">5.0</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              {/* Step 4: Ambulation-Based Score */}
+              <div className="p-4 rounded-xl bg-amber-50 border border-amber-200">
+                <div className="font-semibold text-sm mb-2">{t.step} 4: {t.ambulationBasedScore}</div>
+                <div className="text-sm">
+                  {ambulationBasedEDSS ? (
+                    <>
+                      <div className="font-mono text-lg font-bold">{ambulationBasedEDSS.edss.toFixed(1)}</div>
+                      <div className="text-xs mt-1 text-gray-700">{translateRationale(ambulationBasedEDSS.rationale)}</div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="font-mono text-lg font-bold">0</div>
+                      <div className="text-xs mt-1 text-gray-700">(walks ≥500m unaided)</div>
+                    </>
+
                   )}
                 </div>
               </div>
 
-              {/* Step 4: EDSS Calculation Rule */}
+              {/* Step 5: Final Score Selection */}
               <div className="p-4 rounded-xl bg-green-50 border border-green-200">
-                <div className="font-semibold text-sm mb-2">{t.step} 4: {t.edssCalculation}</div>
-                <div className="text-sm space-y-1">
-                  <div className="font-mono text-xs bg-white p-2 rounded border">
-                    {translateRationale(result.rationale)}
+                <div className="font-semibold text-sm mb-2">{t.step} 5: {t.finalScoreSelection}</div>
+                <div className="text-sm space-y-2">
+                  <div className="bg-white p-3 rounded border">
+                    <div className="font-mono text-xs mb-1">{t.maximumOfScores}</div>
+                    <div className="flex items-center gap-2 text-xs">
+                      <span>max({fsBasedEDSS?.edss.toFixed(1) || '0.0'}, {ambulationBasedEDSS?.edss.toFixed(1) || '0.0'})</span>
+                      <span>=</span>
+                      <span className="font-bold text-base">{edss.toFixed(1)}</span>
+                    </div>
                   </div>
-                  <div className="mt-2">
-                    • {t.maximumFS}: {Math.max(...Object.values(correctedFSForDisplay))}
-                  </div>
-                  <div>
-                    • {t.edssMaximumExplanation}
-                  </div>
-                </div>
-              </div>
-
-              {/* FS Pattern Table */}
-              <div className="p-4 rounded-xl bg-purple-50 border border-purple-200">
-                <div className="font-semibold text-sm mb-3">{t.fsPatternsTableTitle}</div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs border-collapse">
-                    <thead>
-                      <tr className="bg-purple-100">
-                        <th className="border border-purple-300 px-2 py-2 text-center font-semibold">FS 0</th>
-                        <th className="border border-purple-300 px-2 py-2 text-center font-semibold">FS 1</th>
-                        <th className="border border-purple-300 px-2 py-2 text-center font-semibold">FS 2</th>
-                        <th className="border border-purple-300 px-2 py-2 text-center font-semibold">FS 3</th>
-                        <th className="border border-purple-300 px-2 py-2 text-center font-semibold">FS 4</th>
-                        <th className="border border-purple-300 px-2 py-2 text-center font-semibold">FS 5</th>
-                        <th className="border border-purple-300 px-2 py-2 text-center font-semibold">FS 6</th>
-                        <th className="border border-purple-300 px-2 py-2 text-center font-semibold">EDSS</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white">
-                      <tr>
-                        <td className="border border-purple-200 px-2 py-2 text-center">{t.all}</td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2 text-center font-mono">0</td>
-                      </tr>
-                      <tr>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2 text-center">1</td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2 text-center font-mono">1</td>
-                      </tr>
-                      <tr>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2 text-center">&gt;1</td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2 text-center font-mono">1.5</td>
-                      </tr>
-                      <tr>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2 text-center">1</td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2 text-center font-mono">2</td>
-                      </tr>
-                      <tr>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2 text-center">2</td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2 text-center font-mono">2.5</td>
-                      </tr>
-                      <tr>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2 text-center">0</td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2 text-center">1</td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2 text-center font-mono">3</td>
-                      </tr>
-                      <tr>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2 text-center">3-4</td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2 text-center font-mono">3</td>
-                      </tr>
-                      <tr>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2 text-center">1-2</td>
-                        <td className="border border-purple-200 px-2 py-2 text-center">1</td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2 text-center font-mono">3.5</td>
-                      </tr>
-                      <tr>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2 text-center">0</td>
-                        <td className="border border-purple-200 px-2 py-2 text-center">2</td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2 text-center font-mono">3.5</td>
-                      </tr>
-                      <tr>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2 text-center">5</td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2 text-center font-mono">3.5</td>
-                      </tr>
-                      <tr>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2 text-center">0</td>
-                        <td className="border border-purple-200 px-2 py-2 text-center">0</td>
-                        <td className="border border-purple-200 px-2 py-2 text-center">1</td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2 text-center font-mono">4</td>
-                      </tr>
-                      <tr>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2 text-center">&gt;0</td>
-                        <td className="border border-purple-200 px-2 py-2 text-center">2-4</td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2 text-center font-mono">4</td>
-                      </tr>
-                      <tr>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2 text-center">&gt;5</td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2 text-center font-mono">4</td>
-                      </tr>
-                      <tr>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2 text-center">5</td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2 text-center font-mono">4.5</td>
-                      </tr>
-                      <tr>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2 text-center">1-2</td>
-                        <td className="border border-purple-200 px-2 py-2 text-center">1</td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2 text-center font-mono">4.5</td>
-                      </tr>
-                      <tr>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2 text-center">&gt;=1</td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2 text-center font-mono">5</td>
-                      </tr>
-                      <tr>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2 text-center">&gt;=2</td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2 text-center font-mono">5</td>
-                      </tr>
-                      <tr>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2 text-center">&gt;=6</td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2"></td>
-                        <td className="border border-purple-200 px-2 py-2 text-center font-mono">5</td>
-                      </tr>
-                    </tbody>
-                  </table>
                 </div>
               </div>
 

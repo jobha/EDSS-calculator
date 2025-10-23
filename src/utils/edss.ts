@@ -27,7 +27,7 @@ export function correctedFS(fs: Record<string, number>): Record<string, number> 
   return out;
 }
 
-function computeLowEDSS_Neurostatus(fs: Record<string, number>) {
+export function computeLowEDSS_Neurostatus(fs: Record<string, number>) {
   const v = Object.values(fs);
   const cnt = (n: number) => v.filter((x) => x === n).length;
   const max = Math.max(...v);
@@ -65,9 +65,9 @@ function computeLowEDSS_Neurostatus(fs: Record<string, number>) {
     return { edss: 2.5, rationale: "Two FS = 2" };
   }
 
-  // Row 6: FS1=0, FS3=1 → EDSS 3
-  if (cnt1 === 0 && cnt3 === 1 && max === 3) {
-    return { edss: 3.0, rationale: "Single FS = 3, no FS = 1" };
+  // Row 6: FS2=0, FS3=1 → EDSS 3
+  if (cnt2 === 0 && cnt3 === 1 && max === 3) {
+    return { edss: 3.0, rationale: "Single FS = 3, no FS = 2" };
   }
 
   // Row 7: FS2=3-4 → EDSS 3
@@ -75,14 +75,14 @@ function computeLowEDSS_Neurostatus(fs: Record<string, number>) {
     return { edss: 3.0, rationale: "3-4 FS = 2" };
   }
 
-  // Row 8: FS1=1-2, FS2=1 → EDSS 3.5 (must check before row 15)
-  if (cnt1 >= 1 && cnt1 <= 2 && cnt2 === 1 && max === 2) {
-    return { edss: 3.5, rationale: "1-2 FS = 1, single FS = 2" };
+  // Row 8: FS2=1-2, FS3=1 → EDSS 3.5 (must check before row 15)
+  if (cnt2 >= 1 && cnt2 <= 2 && cnt3 === 1 && max === 3) {
+    return { edss: 3.5, rationale: "1-2 FS = 2, single FS = 3" };
   }
 
-  // Row 9: FS1=0, FS2=2 → EDSS 3.5
-  if (cnt1 === 0 && cnt2 === 2 && max === 2) {
-    return { edss: 3.5, rationale: "Two FS = 2, no FS = 1" };
+  // Row 9: FS2=0, FS3=2 → EDSS 3.5
+  if (cnt2 === 0 && cnt3 === 2 && max === 3) {
+    return { edss: 3.5, rationale: "Two FS = 3, no FS = 2" };
   }
 
   // Row 10: FS2=5 → EDSS 3.5
@@ -90,42 +90,52 @@ function computeLowEDSS_Neurostatus(fs: Record<string, number>) {
     return { edss: 3.5, rationale: "Five FS = 2" };
   }
 
-  // Row 11: FS1=0, FS2=0, FS3=1 → EDSS 4
-  if (cnt1 === 0 && cnt2 === 0 && cnt3 === 1 && max === 3) {
-    return { edss: 4.0, rationale: "Single FS = 3, no FS = 1 or 2" };
+  // Row 11: FS2=0, FS3=0, FS4=1 → EDSS 4
+  if (cnt2 === 0 && cnt3 === 0 && cnt4 === 1 && max === 4) {
+    return { edss: 4.0, rationale: "Single FS = 4, no FS = 2 or 3" };
   }
 
-  // Row 12: FS1>0, FS2=2-4 → EDSS 4
-  if (cnt1 > 0 && cnt2 >= 2 && cnt2 <= 4 && max === 2) {
-    return { edss: 4.0, rationale: ">0 FS = 1, 2-4 FS = 2" };
+  // Row 12: FS2=0, FS3=3-4 → EDSS 4
+  if (cnt2 === 0 && cnt3 >= 3 && cnt3 <= 4 && max === 3) {
+    return { edss: 4.0, rationale: "0 FS = 2, 3-4 FS = 3" };
   }
 
-  // Row 13: FS2>5 → EDSS 4
+  // Row 13: FS2>0, FS3=2-4 → EDSS 4
+  if (cnt2 > 0 && cnt3 >= 2 && cnt3 <= 4 && max === 3) {
+    return { edss: 4.0, rationale: ">0 FS = 2, 2-4 FS = 3" };
+  }
+
+  // Row 14: FS2>5 → EDSS 4
   if (cnt2 > 5 && max === 2) {
     return { edss: 4.0, rationale: ">5 FS = 2" };
   }
 
-  // Row 14: FS3=5 → EDSS 4.5
+  // Row 15: FS3=5 → EDSS 4.5
   if (cnt3 === 5 && max === 3) {
     return { edss: 4.5, rationale: "Five FS = 3" };
   }
 
-  // Row 15: FS3=1-2, FS4=1 → EDSS 4.5
+  // Row 16: FS3=1-2, FS4=1 → EDSS 4.5
   if (cnt3 >= 1 && cnt3 <= 2 && cnt4 === 1 && max === 4) {
     return { edss: 4.5, rationale: "1-2 FS = 3, single FS = 4" };
   }
 
-  // Row 16: FS5>=1 → EDSS 5
+  // Row 17: FS2>=1, FS4=1 → EDSS 4.5
+  if (cnt2 >= 1 && cnt4 === 1 && max === 4) {
+    return { edss: 4.5, rationale: "FS = 2 present, single FS = 4" };
+  }
+
+  // Row 18: FS5>=1 → EDSS 5
   if (cnt5 >= 1) {
     return { edss: 5.0, rationale: "FS = 5 present" };
   }
 
-  // Row 17: FS4>=2 → EDSS 5
+  // Row 19: FS4>=2 → EDSS 5
   if (cnt4 >= 2) {
     return { edss: 5.0, rationale: ">=2 FS = 4" };
   }
 
-  // Row 18: FS3>=6 → EDSS 5
+  // Row 20: FS3>=6 → EDSS 5
   if (cnt3 >= 6) {
     return { edss: 5.0, rationale: ">=6 FS = 3" };
   }
