@@ -383,7 +383,7 @@ export const translations = {
     babinski: "Babinski",
     clonus: "Klonus",
     spasticGait: "Spastisk gange",
-    fatigability: "Utmattbarhet",
+    fatigability: "Tretbarhet",
     // Movement components for narrative formatting
     movements: {
       shoulder: "skulder", elbow: "albue", wrist: "håndledd", finger: "finger",

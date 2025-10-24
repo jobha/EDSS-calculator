@@ -365,9 +365,9 @@ export default function App() {
     // Mental summary
     const mFindings = [
       mental.pronouncedDementia && t.pronouncedDementia,
-      mental.markedlyReducedCognition && t.markedlyReducedCognition,
-      mental.moderatelyReducedCognition && t.moderatelyReducedCognition,
-      mental.lightlyReducedCognition && t.lightlyReducedCognition,
+      mental.markedlyReducedCognition && t.markedlyReducedCog,
+      mental.moderatelyReducedCognition && t.moderatelyReducedCog,
+      mental.lightlyReducedCognition && t.lightlyReducedCog,
       mental.moderateToSevereFatigue && t.moderateSevereFatigue,
       mental.mildFatigue && t.mildFatigue,
     ].filter(Boolean).join(', ');
