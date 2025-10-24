@@ -317,15 +317,15 @@ export default function App() {
 
     // Cerebellar summary
     const cFindings = [
-      cerebellar.inabilityCoordinatedMovements && t.unableCoordinatedMovements,
+      cerebellar.inabilityCoordinatedMovements && t.unableCoordMovements,
       cerebellar.ataxiaThreeOrFourLimbs && t.ataxia34Limbs,
-      cerebellar.needsAssistanceDueAtaxia && t.needsAssistance,
-      cerebellar.limbAtaxiaAffectsFunction && t.limbAtaxiaAffectsFunction,
+      cerebellar.needsAssistanceDueAtaxia && t.needsAssistanceAtaxia,
+      cerebellar.limbAtaxiaAffectsFunction && t.limbAtaxiaFunction,
       cerebellar.gaitAtaxia && t.gaitAtaxia,
       cerebellar.truncalAtaxiaEO && t.truncalAtaxia,
-      cerebellar.tremorOrAtaxiaOnCoordTests && t.tremorAtaxiaOnTesting,
+      cerebellar.tremorOrAtaxiaOnCoordTests && t.tremorAtaxiaCoord,
       cerebellar.rombergFallTendency && t.rombergFall,
-      cerebellar.lineWalkDifficulty && t.tandemWalkDifficulty,
+      cerebellar.lineWalkDifficulty && t.tandemDifficulty,
     ].filter(Boolean).join(', ');
     const cSummary = cFindings || t.normal;
 
@@ -337,9 +337,9 @@ export default function App() {
       return severity;
     };
     const sFindings = [
-      sensory.vibSeverity !== 'normal' && sensory.vibCount > 0 && `${t.vib} ${getSeverityText(sensory.vibSeverity)} ${sensory.vibCount} ${t.limbs}`,
+      sensory.vibSeverity !== 'normal' && sensory.vibCount > 0 && `${t.vibration} ${getSeverityText(sensory.vibSeverity)} ${sensory.vibCount} ${t.limbs}`,
       sensory.ptSeverity !== 'normal' && sensory.ptCount > 0 && `${t.painTouch} ${getSeverityText(sensory.ptSeverity)} ${sensory.ptCount} ${t.limbs}`,
-      sensory.jpSeverity !== 'normal' && sensory.jpCount > 0 && `${t.jointPos} ${getSeverityText(sensory.jpSeverity)} ${sensory.jpCount} ${t.limbs}`,
+      sensory.jpSeverity !== 'normal' && sensory.jpCount > 0 && `${t.jointPosition} ${getSeverityText(sensory.jpSeverity)} ${sensory.jpCount} ${t.limbs}`,
     ].filter(Boolean).join(', ');
     const sSummary = sFindings || t.normal;
 
@@ -347,11 +347,11 @@ export default function App() {
     const bbFindings = [
       bb.lossBladderFunction && t.lossBladderFunction,
       bb.lossBowelFunction && t.lossBowelFunction,
-      bb.permanentCatheter && t.permanentCatheter,
+      bb.permanentCatheter && t.permanentCath,
       bb.bowelIncontinenceWeekly && t.bowelIncontinenceWeekly,
       bb.frequentIncontinence && t.frequentIncontinence,
       bb.intermittentCatheterization && t.intermittentCath,
-      bb.needsHelpForBowelMovement && t.needsHelpForBM,
+      bb.needsHelpForBowelMovement && t.needsHelpBM,
       bb.moderateUrge && t.moderateUrge,
       bb.moderateConstipation && t.moderateConstipation,
       bb.rareIncontinence && t.rareIncontinence,
