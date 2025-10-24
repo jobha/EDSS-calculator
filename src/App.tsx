@@ -917,12 +917,12 @@ export default function App() {
                       <tr key={row.labelKey} className="border-t">
                         <td className="py-1 pr-2">{t[row.labelKey]}</td>
                         <td className="py-1 pr-2">
-                          <select className="border rounded-lg p-1" value={(pyramidal as any)[row.keyR]} onChange={(e)=> setPyramidal(prev=> ({...prev, [row.keyR]: Number(e.target.value)} as any))}>
+                          <select className="border rounded-lg p-1" value={pyramidal[row.keyR as keyof typeof pyramidal] as number} onChange={(e)=> setPyramidal(prev=> ({...prev, [row.keyR]: Number(e.target.value)}))}>
                             {[5,4,3,2,1,0].map(v=> <option key={v} value={v}>{v}</option>)}
                           </select>
                         </td>
                         <td className="py-1 pr-2">
-                          <select className="border rounded-lg p-1" value={(pyramidal as any)[row.keyL]} onChange={(e)=> setPyramidal(prev=> ({...prev, [row.keyL]: Number(e.target.value)} as any))}>
+                          <select className="border rounded-lg p-1" value={pyramidal[row.keyL as keyof typeof pyramidal] as number} onChange={(e)=> setPyramidal(prev=> ({...prev, [row.keyL]: Number(e.target.value)}))}>
                             {[5,4,3,2,1,0].map(v=> <option key={v} value={v}>{v}</option>)}
                           </select>
                         </td>
@@ -957,12 +957,12 @@ export default function App() {
                       <tr key={row.labelKey} className="border-t">
                         <td className="py-1 pr-2">{t[row.labelKey]}</td>
                         <td className="py-1 pr-2">
-                          <select className="border rounded-lg p-1" value={(pyramidal as any)[row.keyR]} onChange={(e)=> setPyramidal(prev=> ({...prev, [row.keyR]: Number(e.target.value)} as any))}>
+                          <select className="border rounded-lg p-1" value={pyramidal[row.keyR as keyof typeof pyramidal] as number} onChange={(e)=> setPyramidal(prev=> ({...prev, [row.keyR]: Number(e.target.value)}))}>
                             {[5,4,3,2,1,0].map(v=> <option key={v} value={v}>{v}</option>)}
                           </select>
                         </td>
                         <td className="py-1 pr-2">
-                          <select className="border rounded-lg p-1" value={(pyramidal as any)[row.keyL]} onChange={(e)=> setPyramidal(prev=> ({...prev, [row.keyL]: Number(e.target.value)} as any))}>
+                          <select className="border rounded-lg p-1" value={pyramidal[row.keyL as keyof typeof pyramidal] as number} onChange={(e)=> setPyramidal(prev=> ({...prev, [row.keyL]: Number(e.target.value)}))}>
                             {[5,4,3,2,1,0].map(v=> <option key={v} value={v}>{v}</option>)}
                           </select>
                         </td>
@@ -1040,7 +1040,10 @@ export default function App() {
               <div className="text-sm font-medium">{t.vibration}</div>
               <div className="grid grid-cols-2 gap-2 items-center">
                 <label className="text-sm">{t.severity}</label>
-                <select className="border rounded-lg p-1 text-sm" value={sensory.vibSeverity} onChange={(e)=> setSensory({...sensory, vibSeverity: e.target.value as Severity})}>
+                <select className="border rounded-lg p-1 text-sm" value={sensory.vibSeverity} onChange={(e)=> {
+                  const newSeverity = e.target.value as Severity;
+                  setSensory({...sensory, vibSeverity: newSeverity, vibCount: newSeverity === 'normal' ? 0 : sensory.vibCount, vibRightArm: newSeverity === 'normal' ? false : sensory.vibRightArm, vibLeftArm: newSeverity === 'normal' ? false : sensory.vibLeftArm, vibRightLeg: newSeverity === 'normal' ? false : sensory.vibRightLeg, vibLeftLeg: newSeverity === 'normal' ? false : sensory.vibLeftLeg});
+                }}>
                   <option value="normal">{t.sensNormal}</option>
                   <option value="mild">{t.sensMild}</option>
                   <option value="moderate">{t.sensModerate}</option>
@@ -1087,7 +1090,10 @@ export default function App() {
               <div className="text-sm font-medium">{t.painTouch}</div>
               <div className="grid grid-cols-2 gap-2 items-center">
                 <label className="text-sm">{t.severity}</label>
-                <select className="border rounded-lg p-1 text-sm" value={sensory.ptSeverity} onChange={(e)=> setSensory({...sensory, ptSeverity: e.target.value as Severity})}>
+                <select className="border rounded-lg p-1 text-sm" value={sensory.ptSeverity} onChange={(e)=> {
+                  const newSeverity = e.target.value as Severity;
+                  setSensory({...sensory, ptSeverity: newSeverity, ptCount: newSeverity === 'normal' ? 0 : sensory.ptCount, ptRightArm: newSeverity === 'normal' ? false : sensory.ptRightArm, ptLeftArm: newSeverity === 'normal' ? false : sensory.ptLeftArm, ptRightLeg: newSeverity === 'normal' ? false : sensory.ptRightLeg, ptLeftLeg: newSeverity === 'normal' ? false : sensory.ptLeftLeg});
+                }}>
                   <option value="normal">{t.sensNormal}</option>
                   <option value="mild">{t.sensMild}</option>
                   <option value="moderate">{t.sensModerate}</option>
@@ -1134,7 +1140,10 @@ export default function App() {
               <div className="text-sm font-medium">{t.jointPosition}</div>
               <div className="grid grid-cols-2 gap-2 items-center">
                 <label className="text-sm">{t.severity}</label>
-                <select className="border rounded-lg p-1 text-sm" value={sensory.jpSeverity} onChange={(e)=> setSensory({...sensory, jpSeverity: e.target.value as Severity})}>
+                <select className="border rounded-lg p-1 text-sm" value={sensory.jpSeverity} onChange={(e)=> {
+                  const newSeverity = e.target.value as Severity;
+                  setSensory({...sensory, jpSeverity: newSeverity, jpCount: newSeverity === 'normal' ? 0 : sensory.jpCount, jpRightArm: newSeverity === 'normal' ? false : sensory.jpRightArm, jpLeftArm: newSeverity === 'normal' ? false : sensory.jpLeftArm, jpRightLeg: newSeverity === 'normal' ? false : sensory.jpRightLeg, jpLeftLeg: newSeverity === 'normal' ? false : sensory.jpLeftLeg});
+                }}>
                   <option value="normal">{t.sensNormal}</option>
                   <option value="mild">{t.sensMild}</option>
                   <option value="moderate">{t.sensModerate}</option>
@@ -1206,8 +1215,8 @@ export default function App() {
           <FSRowWrapper code="M">
             <div className="space-y-1">
               <div className="text-sm font-medium">{t.fatigue}</div>
-              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={mental.mildFatigue} onChange={(e)=>setMental({ ...mental, mildFatigue: e.target.checked })}/>{t.mildFatigue}</label>
-              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={mental.moderateToSevereFatigue} onChange={(e)=>setMental({ ...mental, moderateToSevereFatigue: e.target.checked })}/>{t.moderateSevereFatigue}</label>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={mental.mildFatigue} onChange={(e)=>setMental({ ...mental, mildFatigue: e.target.checked, moderateToSevereFatigue: e.target.checked ? false : mental.moderateToSevereFatigue })}/>{t.mildFatigue}</label>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={mental.moderateToSevereFatigue} onChange={(e)=>setMental({ ...mental, moderateToSevereFatigue: e.target.checked, mildFatigue: e.target.checked ? false : mental.mildFatigue })}/>{t.moderateSevereFatigue}</label>
             </div>
             <div className="space-y-1">
               <div className="text-sm font-medium">{t.cognitiveFunction}</div>
