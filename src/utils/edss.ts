@@ -100,42 +100,47 @@ export function computeLowEDSS_Neurostatus(fs: Record<string, number>) {
     return { edss: 4.0, rationale: "0 FS = 2, 3-4 FS = 3" };
   }
 
-  // Row 13: FS2>0, FS3=2-4 → EDSS 4
+  // Row 13: FS2>=3, FS3=1 → EDSS 4
+  if (cnt2 >= 3 && cnt3 === 1 && max === 3) {
+    return { edss: 4.0, rationale: ">=3 FS = 2, single FS = 3" };
+  }
+
+  // Row 14: FS2>0, FS3=2-4 → EDSS 4
   if (cnt2 > 0 && cnt3 >= 2 && cnt3 <= 4 && max === 3) {
     return { edss: 4.0, rationale: ">0 FS = 2, 2-4 FS = 3" };
   }
 
-  // Row 14: FS2>5 → EDSS 4
+  // Row 15: FS2>5 → EDSS 4
   if (cnt2 > 5 && max === 2) {
     return { edss: 4.0, rationale: ">5 FS = 2" };
   }
 
-  // Row 15: FS3=5 → EDSS 4.5
+  // Row 16: FS3=5 → EDSS 4.5
   if (cnt3 === 5 && max === 3) {
     return { edss: 4.5, rationale: "Five FS = 3" };
   }
 
-  // Row 16: FS3=1-2, FS4=1 → EDSS 4.5
+  // Row 17: FS3=1-2, FS4=1 → EDSS 4.5
   if (cnt3 >= 1 && cnt3 <= 2 && cnt4 === 1 && max === 4) {
     return { edss: 4.5, rationale: "1-2 FS = 3, single FS = 4" };
   }
 
-  // Row 17: FS2>=1, FS4=1 → EDSS 4.5
+  // Row 18: FS2>=1, FS4=1 → EDSS 4.5
   if (cnt2 >= 1 && cnt4 === 1 && max === 4) {
     return { edss: 4.5, rationale: "FS = 2 present, single FS = 4" };
   }
 
-  // Row 18: FS5>=1 → EDSS 5
+  // Row 19: FS5>=1 → EDSS 5
   if (cnt5 >= 1) {
     return { edss: 5.0, rationale: "FS = 5 present" };
   }
 
-  // Row 19: FS4>=2 → EDSS 5
+  // Row 20: FS4>=2 → EDSS 5
   if (cnt4 >= 2) {
     return { edss: 5.0, rationale: ">=2 FS = 4" };
   }
 
-  // Row 20: FS3>=6 → EDSS 5
+  // Row 21: FS3>=6 → EDSS 5
   if (cnt3 >= 6) {
     return { edss: 5.0, rationale: ">=6 FS = 3" };
   }

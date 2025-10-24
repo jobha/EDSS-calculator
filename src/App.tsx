@@ -181,14 +181,15 @@ export default function App() {
     if (cnt2 === 5 && max === 2) return 9;
     if (cnt2 === 0 && cnt3 === 0 && cnt4 === 1 && max === 4) return 10;
     if (cnt2 === 0 && cnt3 >= 3 && cnt3 <= 4 && max === 3) return 11;
-    if (cnt2 > 0 && cnt3 >= 2 && cnt3 <= 4 && max === 3) return 12;
-    if (cnt2 > 5 && max === 2) return 13;
-    if (cnt3 === 5 && max === 3) return 14;
-    if (cnt3 >= 1 && cnt3 <= 2 && cnt4 === 1 && max === 4) return 15;
-    if (cnt2 >= 1 && cnt4 === 1 && max === 4) return 16;
-    if (cnt5 >= 1) return 17;
-    if (cnt4 >= 2) return 18;
-    if (cnt3 >= 6) return 19;
+    if (cnt2 >= 3 && cnt3 === 1 && max === 3) return 12;
+    if (cnt2 > 0 && cnt3 >= 2 && cnt3 <= 4 && max === 3) return 13;
+    if (cnt2 > 5 && max === 2) return 14;
+    if (cnt3 === 5 && max === 3) return 15;
+    if (cnt3 >= 1 && cnt3 <= 2 && cnt4 === 1 && max === 4) return 16;
+    if (cnt2 >= 1 && cnt4 === 1 && max === 4) return 17;
+    if (cnt5 >= 1) return 18;
+    if (cnt4 >= 2) return 19;
+    if (cnt3 >= 6) return 20;
     return -1;
   }, [fsBasedEDSS, fs]);
 
@@ -1475,6 +1476,16 @@ export default function App() {
                         <tr className={matchingFSRowIndex === 12 ? "bg-yellow-100 font-bold" : ""}>
                           <td className="border border-purple-200 px-2 py-1"></td>
                           <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1 text-center">&gt;=3</td>
+                          <td className="border border-purple-200 px-2 py-1 text-center">1</td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1 text-center font-mono">4.0</td>
+                        </tr>
+                        <tr className={matchingFSRowIndex === 13 ? "bg-yellow-100 font-bold" : ""}>
+                          <td className="border border-purple-200 px-2 py-1"></td>
+                          <td className="border border-purple-200 px-2 py-1"></td>
                           <td className="border border-purple-200 px-2 py-1 text-center">&gt;0</td>
                           <td className="border border-purple-200 px-2 py-1 text-center">2-4</td>
                           <td className="border border-purple-200 px-2 py-1"></td>
@@ -1482,7 +1493,7 @@ export default function App() {
                           <td className="border border-purple-200 px-2 py-1"></td>
                           <td className="border border-purple-200 px-2 py-1 text-center font-mono">4.0</td>
                         </tr>
-                        <tr className={matchingFSRowIndex === 13 ? "bg-yellow-100 font-bold" : ""}>
+                        <tr className={matchingFSRowIndex === 14 ? "bg-yellow-100 font-bold" : ""}>
                           <td className="border border-purple-200 px-2 py-1"></td>
                           <td className="border border-purple-200 px-2 py-1"></td>
                           <td className="border border-purple-200 px-2 py-1 text-center">&gt;5</td>
@@ -1492,7 +1503,7 @@ export default function App() {
                           <td className="border border-purple-200 px-2 py-1"></td>
                           <td className="border border-purple-200 px-2 py-1 text-center font-mono">4.0</td>
                         </tr>
-                        <tr className={matchingFSRowIndex === 14 ? "bg-yellow-100 font-bold" : ""}>
+                        <tr className={matchingFSRowIndex === 15 ? "bg-yellow-100 font-bold" : ""}>
                           <td className="border border-purple-200 px-2 py-1"></td>
                           <td className="border border-purple-200 px-2 py-1"></td>
                           <td className="border border-purple-200 px-2 py-1"></td>
@@ -1502,7 +1513,7 @@ export default function App() {
                           <td className="border border-purple-200 px-2 py-1"></td>
                           <td className="border border-purple-200 px-2 py-1 text-center font-mono">4.5</td>
                         </tr>
-                        <tr className={matchingFSRowIndex === 15 ? "bg-yellow-100 font-bold" : ""}>
+                        <tr className={matchingFSRowIndex === 16 ? "bg-yellow-100 font-bold" : ""}>
                           <td className="border border-purple-200 px-2 py-1"></td>
                           <td className="border border-purple-200 px-2 py-1"></td>
                           <td className="border border-purple-200 px-2 py-1"></td>
@@ -1512,7 +1523,7 @@ export default function App() {
                           <td className="border border-purple-200 px-2 py-1"></td>
                           <td className="border border-purple-200 px-2 py-1 text-center font-mono">4.5</td>
                         </tr>
-                        <tr className={matchingFSRowIndex === 16 ? "bg-yellow-100 font-bold" : ""}>
+                        <tr className={matchingFSRowIndex === 17 ? "bg-yellow-100 font-bold" : ""}>
                           <td className="border border-purple-200 px-2 py-1"></td>
                           <td className="border border-purple-200 px-2 py-1"></td>
                           <td className="border border-purple-200 px-2 py-1 text-center">&gt;=1</td>
@@ -1522,7 +1533,7 @@ export default function App() {
                           <td className="border border-purple-200 px-2 py-1"></td>
                           <td className="border border-purple-200 px-2 py-1 text-center font-mono">4.5</td>
                         </tr>
-                        <tr className={matchingFSRowIndex === 17 ? "bg-yellow-100 font-bold" : ""}>
+                        <tr className={matchingFSRowIndex === 18 ? "bg-yellow-100 font-bold" : ""}>
                           <td className="border border-purple-200 px-2 py-1"></td>
                           <td className="border border-purple-200 px-2 py-1"></td>
                           <td className="border border-purple-200 px-2 py-1"></td>
@@ -1532,7 +1543,7 @@ export default function App() {
                           <td className="border border-purple-200 px-2 py-1"></td>
                           <td className="border border-purple-200 px-2 py-1 text-center font-mono">5.0</td>
                         </tr>
-                        <tr className={matchingFSRowIndex === 18 ? "bg-yellow-100 font-bold" : ""}>
+                        <tr className={matchingFSRowIndex === 19 ? "bg-yellow-100 font-bold" : ""}>
                           <td className="border border-purple-200 px-2 py-1"></td>
                           <td className="border border-purple-200 px-2 py-1"></td>
                           <td className="border border-purple-200 px-2 py-1"></td>
@@ -1542,7 +1553,7 @@ export default function App() {
                           <td className="border border-purple-200 px-2 py-1"></td>
                           <td className="border border-purple-200 px-2 py-1 text-center font-mono">5.0</td>
                         </tr>
-                        <tr className={matchingFSRowIndex === 19 ? "bg-yellow-100 font-bold" : ""}>
+                        <tr className={matchingFSRowIndex === 20 ? "bg-yellow-100 font-bold" : ""}>
                           <td className="border border-purple-200 px-2 py-1"></td>
                           <td className="border border-purple-200 px-2 py-1"></td>
                           <td className="border border-purple-200 px-2 py-1"></td>
