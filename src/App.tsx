@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import LZString from 'lz-string';
 import { Language, translations } from "./i18n/translations";
 import type { AssistanceId, EyeAcuity, Severity } from "./types/edss";
 import type { VisualForm, BrainstemForm, PyramidalForm, CerebellarForm, SensoryForm, BowelBladderForm, MentalForm } from "./types/forms";
@@ -22,6 +23,73 @@ const fsMeta: Record<string, { label: string; max: number; help: string }> = {
   BB: { label: "BB (Bowel/Bladder)", max: 6, help: "Urgency, incontinence, catheter; 0-6" },
   M: { label: "M (Cerebral)", max: 5, help: "Cognition/mood; 0-5" },
 };
+
+// Default state for compression (only serialize differences)
+const DEFAULT_STATE = {
+  visual: { leftEyeAcuity: "1.0", rightEyeAcuity: "1.0", visualFieldDeficit: "none" },
+  brainstem: { eyeMotilityLevel: 0, nystagmus: "none", ino: false, facialSensLeft: 0, facialSensRight: 0, facialSymLeft: 0, facialSymRight: 0, hearingLeft: 0, hearingRight: 0, dysarthriaLevel: 0, dysphagiaLevel: 0 },
+  pyramidal: { shoulderAbductionR:5, shoulderAbductionL:5, shoulderExternalRotationR:5, shoulderExternalRotationL:5, elbowFlexionR:5, elbowFlexionL:5, elbowExtensionR:5, elbowExtensionL:5, wristExtensionR:5, wristExtensionL:5, fingerAbductionR:5, fingerAbductionL:5, hipFlexionR:5, hipFlexionL:5, hipAbductionR:5, hipAbductionL:5, kneeExtensionR:5, kneeExtensionL:5, kneeFlexionR:5, kneeFlexionL:5, ankleDorsiflexionR:5, ankleDorsiflexionL:5, anklePlantarflexionR:5, anklePlantarflexionL:5, hyperreflexiaLeft:false, hyperreflexiaRight:false, babinskiLeft:false, babinskiRight:false, clonusLeft:false, clonusRight:false, spasticGait:false, fatigability:false },
+  cerebellar: { fingerNoseRightArm: false, fingerNoseLeftArm: false, heelKneeRightLeg: false, heelKneeLeftLeg: false, rombergFallTendency: false, lineWalkDifficulty: false, limbAtaxiaAffectsFunction: false, gaitAtaxia: false, truncalAtaxiaEO: false, ataxiaThreeOrFourLimbs: false, needsAssistanceDueAtaxia: false, inabilityCoordinatedMovements: false, mildCerebellarSignsNoFunction: false },
+  sensory: { vibSeverity: "normal", vibCount: 0, vibRightArm: false, vibLeftArm: false, vibRightLeg: false, vibLeftLeg: false, ptSeverity: "normal", ptCount: 0, ptRightArm: false, ptLeftArm: false, ptRightLeg: false, ptLeftLeg: false, jpSeverity: "normal", jpCount: 0, jpRightArm: false, jpLeftArm: false, jpRightLeg: false, jpLeftLeg: false },
+  bb: { mildUrge: false, mildConstipation: false, moderateUrge: false, moderateConstipation: false, rareIncontinence: false, severeConstipation: false, frequentIncontinence: false, intermittentCatheterization: false, needsHelpForBowelMovement: false, permanentCatheter: false, bowelIncontinenceWeekly: false, lossBladderFunction: false, lossBowelFunction: false },
+  mental: { mildFatigue: false, moderateToSevereFatigue: false, lightlyReducedCognition: false, moderatelyReducedCognition: false, markedlyReducedCognition: false, pronouncedDementia: false },
+  assistance: "none",
+  walkingDistance: "500"
+};
+
+// Helper: Remove default values from object (recursive)
+function removeDefaults(obj: any, defaults: any): any {
+  if (obj === defaults) return undefined;
+  if (typeof obj !== 'object' || obj === null) return obj === defaults ? undefined : obj;
+  if (Array.isArray(obj)) return obj;
+
+  const result: any = {};
+  let hasChanges = false;
+
+  for (const key in obj) {
+    if (obj.hasOwnProperty(key)) {
+      const value = obj[key];
+      const defaultValue = defaults?.[key];
+
+      if (value !== defaultValue) {
+        if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+          const nested = removeDefaults(value, defaultValue);
+          if (nested !== undefined && Object.keys(nested).length > 0) {
+            result[key] = nested;
+            hasChanges = true;
+          }
+        } else {
+          result[key] = value;
+          hasChanges = true;
+        }
+      }
+    }
+  }
+
+  return hasChanges ? result : undefined;
+}
+
+// Helper: Merge cleaned state with defaults (recursive)
+function mergeWithDefaults(obj: any, defaults: any): any {
+  if (typeof defaults !== 'object' || defaults === null) return obj ?? defaults;
+  if (Array.isArray(defaults)) return obj ?? defaults;
+
+  const result: any = { ...defaults };
+
+  if (typeof obj === 'object' && obj !== null) {
+    for (const key in obj) {
+      if (obj.hasOwnProperty(key)) {
+        if (typeof obj[key] === 'object' && obj[key] !== null && !Array.isArray(obj[key])) {
+          result[key] = mergeWithDefaults(obj[key], defaults[key]);
+        } else {
+          result[key] = obj[key];
+        }
+      }
+    }
+  }
+
+  return result;
+}
 
 // ============================================================================
 // COMPONENT
@@ -723,7 +791,7 @@ export default function App() {
   const [restoreInput, setRestoreInput] = useState('');
   const [restoreError, setRestoreError] = useState('');
 
-  // Generate encoded state string
+  // Generate encoded state string (compressed)
   const stateString = useMemo(() => {
     const state = {
       visual,
@@ -737,8 +805,12 @@ export default function App() {
       walkingDistance: distance
     };
     try {
-      const jsonStr = JSON.stringify(state);
-      return 'v1:' + btoa(unescape(encodeURIComponent(jsonStr)));
+      // Remove default values (only serialize changes)
+      const cleaned = removeDefaults(state, DEFAULT_STATE) || {};
+      const jsonStr = JSON.stringify(cleaned);
+      // Compress with LZ-String
+      const compressed = LZString.compressToBase64(jsonStr);
+      return 'v1:' + compressed;
     } catch {
       return '';
     }
@@ -783,27 +855,27 @@ export default function App() {
         setRestoreError(t.restoreError);
         return;
       }
-      const decoded = decodeURIComponent(escape(atob(input.substring(3))));
-      const state = JSON.parse(decoded);
-
-      // Validate required fields
-      if (!state.visual || !state.brainstem || !state.pyramidal || !state.cerebellar ||
-          !state.sensory || !state.bb || !state.mental || state.assistance === undefined ||
-          state.walkingDistance === undefined) {
+      // Decompress from LZ-String base64
+      const decompressed = LZString.decompressFromBase64(input.substring(3));
+      if (!decompressed) {
         setRestoreError(t.restoreError);
         return;
       }
+      const cleanedState = JSON.parse(decompressed);
+
+      // Merge with defaults to fill in missing fields
+      const fullState = mergeWithDefaults(cleanedState, DEFAULT_STATE);
 
       // Restore all state
-      setVisual(state.visual);
-      setBrainstem(state.brainstem);
-      setPyramidal(state.pyramidal);
-      setCerebellar(state.cerebellar);
-      setSensory(state.sensory);
-      setBB(state.bb);
-      setMental(state.mental);
-      setAssistance(state.assistance);
-      setDistance(state.walkingDistance);
+      setVisual(fullState.visual);
+      setBrainstem(fullState.brainstem);
+      setPyramidal(fullState.pyramidal);
+      setCerebellar(fullState.cerebellar);
+      setSensory(fullState.sensory);
+      setBB(fullState.bb);
+      setMental(fullState.mental);
+      setAssistance(fullState.assistance);
+      setDistance(fullState.walkingDistance);
       setRestoreInput('');
     } catch {
       setRestoreError(t.restoreError);
