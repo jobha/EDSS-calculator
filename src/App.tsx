@@ -364,12 +364,12 @@ export default function App() {
 
     // Mental summary
     const mFindings = [
-      mental.pronouncedDementia && t.pronouncedDementia,
-      mental.markedlyReducedCognition && t.markedlyReducedCog,
-      mental.moderatelyReducedCognition && t.moderatelyReducedCog,
-      mental.lightlyReducedCognition && t.lightlyReducedCog,
-      mental.moderateToSevereFatigue && t.moderateSevereFatigue,
-      mental.mildFatigue && t.mildFatigue,
+      mental.pronouncedDementia && t.pronouncedDementiaShort,
+      mental.markedlyReducedCognition && t.markedlyReducedCogShort,
+      mental.moderatelyReducedCognition && t.moderatelyReducedCogShort,
+      mental.lightlyReducedCognition && t.lightlyReducedCogShort,
+      mental.moderateToSevereFatigue && t.moderateSevereFatigueShort,
+      mental.mildFatigue && t.mildFatigueShort,
     ].filter(Boolean).join(', ');
     const mSummary = mFindings || t.normal;
 
