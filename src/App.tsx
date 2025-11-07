@@ -59,10 +59,14 @@ export default function App() {
   });
   const [brainstem, setBrainstem] = useState<BrainstemForm>({
     eyeMotilityLevel: 0,
-    nystagmusLevel: 0,
-    facialSensibilityLevel: 0,
-    facialSymmetryLevel: 0,
-    hearingLevel: 0,
+    nystagmus: "none",
+    ino: false,
+    facialSensLeft: 0,
+    facialSensRight: 0,
+    facialSymLeft: 0,
+    facialSymRight: 0,
+    hearingLeft: 0,
+    hearingRight: 0,
     dysarthriaLevel: 0,
     dysphagiaLevel: 0,
   });
@@ -88,7 +92,10 @@ export default function App() {
     spasticGait:false, fatigability:false,
   });
   const [cerebellar, setCerebellar] = useState<CerebellarForm>({
-    tremorOrAtaxiaOnCoordTests: false,
+    fingerNoseRightArm: false,
+    fingerNoseLeftArm: false,
+    heelKneeRightLeg: false,
+    heelKneeLeftLeg: false,
     rombergFallTendency: false,
     lineWalkDifficulty: false,
     limbAtaxiaAffectsFunction: false,
@@ -248,7 +255,7 @@ export default function App() {
   // Summary (multi-line, copy-ready)
   const summary = useMemo(() => {
     const ambFinding = assistance === 'none'
-      ? (parsedDistance != null ? `${t.unaided} ${parsedDistance} m` : `${t.unaided} (n/a)`)
+      ? (parsedDistance != null && parsedDistance > 2000 ? t.walkingDistanceNotLimited : parsedDistance != null ? `${t.unaided} ${parsedDistance} m` : `${t.unaided} (n/a)`)
       : (assistanceLevels.find(a=>a.id===assistance)?.label ?? String(assistance));
 
     // Pyramidal summary
@@ -304,18 +311,41 @@ export default function App() {
     const vSummary = `L: ${leftAcuity}, R: ${rightAcuity}${vfDeficit}`;
 
     // Brainstem summary
+    const nystagmusText = brainstem.nystagmus === "spontaneous" ? t.spontaneousNystagmus :
+                          brainstem.nystagmus === "clear" ? t.clearNystagmus :
+                          brainstem.nystagmus === "mild" ? t.mildNystagmus : '';
+
+    // Format sides with levels (e.g., "L:2+R:3" or "L:2" or "R:3")
+    const facialSensSides = [
+      brainstem.facialSensLeft > 0 && `L:${brainstem.facialSensLeft}`,
+      brainstem.facialSensRight > 0 && `R:${brainstem.facialSensRight}`
+    ].filter(Boolean).join('+');
+    const facialSymSides = [
+      brainstem.facialSymLeft > 0 && `L:${brainstem.facialSymLeft}`,
+      brainstem.facialSymRight > 0 && `R:${brainstem.facialSymRight}`
+    ].filter(Boolean).join('+');
+    const hearingSides = [
+      brainstem.hearingLeft > 0 && `L:${brainstem.hearingLeft}`,
+      brainstem.hearingRight > 0 && `R:${brainstem.hearingRight}`
+    ].filter(Boolean).join('+');
+
     const bsFindings = [
       brainstem.eyeMotilityLevel > 0 && `${t.eyeMotility} ${brainstem.eyeMotilityLevel}`,
-      brainstem.nystagmusLevel > 0 && `${t.nystagmus} ${brainstem.nystagmusLevel}`,
-      brainstem.facialSensibilityLevel > 0 && `${t.facialSens} ${brainstem.facialSensibilityLevel}`,
-      brainstem.facialSymmetryLevel > 0 && `${t.facialSym} ${brainstem.facialSymmetryLevel}`,
-      brainstem.hearingLevel > 0 && `${t.hearing} ${brainstem.hearingLevel}`,
+      nystagmusText,
+      brainstem.ino && t.ino,
+      facialSensSides && `${t.facialSens} ${facialSensSides}`,
+      facialSymSides && `${t.facialSym} ${facialSymSides}`,
+      hearingSides && `${t.hearing} ${hearingSides}`,
       brainstem.dysarthriaLevel > 0 && `${t.dysarthria} ${brainstem.dysarthriaLevel}`,
       brainstem.dysphagiaLevel > 0 && `${t.dysphagia} ${brainstem.dysphagiaLevel}`,
     ].filter(Boolean).join(', ');
     const bsSummary = bsFindings || t.normal;
 
     // Cerebellar summary
+    const fingerNoseLimbs = [cerebellar.fingerNoseRightArm && 'RA', cerebellar.fingerNoseLeftArm && 'LA'].filter(Boolean);
+    const heelKneeLimbs = [cerebellar.heelKneeRightLeg && 'RL', cerebellar.heelKneeLeftLeg && 'LL'].filter(Boolean);
+    const ataxiaLimbs = [...fingerNoseLimbs, ...heelKneeLimbs];
+
     const cFindings = [
       cerebellar.inabilityCoordinatedMovements && t.unableCoordMovements,
       cerebellar.ataxiaThreeOrFourLimbs && t.ataxia34Limbs,
@@ -323,7 +353,8 @@ export default function App() {
       cerebellar.limbAtaxiaAffectsFunction && t.limbAtaxiaFunction,
       cerebellar.gaitAtaxia && t.gaitAtaxia,
       cerebellar.truncalAtaxiaEO && t.truncalAtaxia,
-      cerebellar.tremorOrAtaxiaOnCoordTests && t.tremorAtaxiaCoord,
+      fingerNoseLimbs.length > 0 && `${t.fingerNoseAtaxia} ${fingerNoseLimbs.join('+')}`,
+      heelKneeLimbs.length > 0 && `${t.heelKneeAtaxia} ${heelKneeLimbs.join('+')}`,
       cerebellar.rombergFallTendency && t.rombergFall,
       cerebellar.lineWalkDifficulty && t.tandemDifficulty,
     ].filter(Boolean).join(', ');
@@ -442,10 +473,36 @@ export default function App() {
     // Brainstem
     const bsParts: string[] = [];
     if (brainstem.eyeMotilityLevel > 0) bsParts.push(`${t.eyeMotilityImpairment} (${t.level} ${brainstem.eyeMotilityLevel})`);
-    if (brainstem.nystagmusLevel > 0) bsParts.push(`${t.nystagmus.toLowerCase()} (${t.level} ${brainstem.nystagmusLevel})`);
-    if (brainstem.facialSensibilityLevel > 0) bsParts.push(`${t.facialSensibilityDeficit} (${t.level} ${brainstem.facialSensibilityLevel})`);
-    if (brainstem.facialSymmetryLevel > 0) bsParts.push(`${t.facialAsymmetry} (${t.level} ${brainstem.facialSymmetryLevel})`);
-    if (brainstem.hearingLevel > 0) bsParts.push(`${t.hearingImpairment} (${t.level} ${brainstem.hearingLevel})`);
+
+    // Nystagmus - use descriptive text
+    const nystagmusExamText = brainstem.nystagmus === "spontaneous" ? t.spontaneousNystagmus :
+                              brainstem.nystagmus === "clear" ? t.clearNystagmus :
+                              brainstem.nystagmus === "mild" ? t.mildNystagmus : '';
+    if (nystagmusExamText) bsParts.push(nystagmusExamText);
+
+    if (brainstem.ino) bsParts.push(t.inoPresent);
+
+    // Facial sensibility - show sides with levels
+    const facialSensExamSides = [
+      brainstem.facialSensLeft > 0 && `L (${t.level} ${brainstem.facialSensLeft})`,
+      brainstem.facialSensRight > 0 && `R (${t.level} ${brainstem.facialSensRight})`
+    ].filter(Boolean);
+    if (facialSensExamSides.length > 0) bsParts.push(`${t.facialSensibilityDeficit} ${facialSensExamSides.join(', ')}`);
+
+    // Facial symmetry - show sides with levels
+    const facialSymExamSides = [
+      brainstem.facialSymLeft > 0 && `L (${t.level} ${brainstem.facialSymLeft})`,
+      brainstem.facialSymRight > 0 && `R (${t.level} ${brainstem.facialSymRight})`
+    ].filter(Boolean);
+    if (facialSymExamSides.length > 0) bsParts.push(`${t.facialAsymmetry} ${facialSymExamSides.join(', ')}`);
+
+    // Hearing - show sides with levels
+    const hearingExamSides = [
+      brainstem.hearingLeft > 0 && `L (${t.level} ${brainstem.hearingLeft})`,
+      brainstem.hearingRight > 0 && `R (${t.level} ${brainstem.hearingRight})`
+    ].filter(Boolean);
+    if (hearingExamSides.length > 0) bsParts.push(`${t.hearingImpairment} ${hearingExamSides.join(', ')}`);
+
     if (brainstem.dysarthriaLevel > 0) bsParts.push(`${t.dysarthria.toLowerCase()} (${t.level} ${brainstem.dysarthriaLevel})`);
     if (brainstem.dysphagiaLevel > 0) bsParts.push(`${t.dysphagia.toLowerCase()} (${t.level} ${brainstem.dysphagiaLevel})`);
     if (bsParts.length > 0) {
@@ -672,10 +729,14 @@ export default function App() {
     });
     setBrainstem({
       eyeMotilityLevel: 0,
-      nystagmusLevel: 0,
-      facialSensibilityLevel: 0,
-      facialSymmetryLevel: 0,
-      hearingLevel: 0,
+      nystagmus: "none",
+      ino: false,
+      facialSensLeft: 0,
+      facialSensRight: 0,
+      facialSymLeft: 0,
+      facialSymRight: 0,
+      hearingLeft: 0,
+      hearingRight: 0,
       dysarthriaLevel: 0,
       dysphagiaLevel: 0,
     });
@@ -698,7 +759,10 @@ export default function App() {
       spasticGait:false, fatigability:false,
     });
     setCerebellar({
-      tremorOrAtaxiaOnCoordTests: false,
+      fingerNoseRightArm: false,
+      fingerNoseLeftArm: false,
+      heelKneeRightLeg: false,
+      heelKneeLeftLeg: false,
       rombergFallTendency: false,
       lineWalkDifficulty: false,
       limbAtaxiaAffectsFunction: false,
@@ -829,47 +893,99 @@ export default function App() {
 
               <div className="space-y-1">
                 <div className="text-sm font-medium">{t.nystagmus}</div>
-                <select className="w-full border rounded-lg p-1 text-sm" value={brainstem.nystagmusLevel} onChange={(e)=>setBrainstem({...brainstem, nystagmusLevel: Number(e.target.value) as 0|1|2|3})}>
-                  <option value="0">{t.nystagmus0}</option>
-                  <option value="1">{t.nystagmus1}</option>
-                  <option value="2">{t.nystagmus2}</option>
-                  <option value="3">{t.nystagmus3}</option>
+                <select className="w-full border rounded-lg p-1 text-sm" value={brainstem.nystagmus} onChange={(e)=>setBrainstem({...brainstem, nystagmus: e.target.value as "none"|"mild"|"clear"|"spontaneous"})}>
+                  <option value="none">{t.nystagmusNone}</option>
+                  <option value="mild">{t.nystagmusMild}</option>
+                  <option value="clear">{t.nystagmusClear}</option>
+                  <option value="spontaneous">{t.nystagmusSpontaneous}</option>
                 </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={brainstem.ino} onChange={(e)=>setBrainstem({...brainstem, ino: e.target.checked})}/>
+                  {t.ino}
+                </label>
               </div>
 
               <div className="space-y-1">
                 <div className="text-sm font-medium">{t.facialSensibility}</div>
-                <select className="w-full border rounded-lg p-1 text-sm" value={brainstem.facialSensibilityLevel} onChange={(e)=>setBrainstem({...brainstem, facialSensibilityLevel: Number(e.target.value) as 0|1|2|3|4})}>
-                  <option value="0">{t.facialSensibility0}</option>
-                  <option value="1">{t.facialSensibility1}</option>
-                  <option value="2">{t.facialSensibility2}</option>
-                  <option value="3">{t.facialSensibility3}</option>
-                  <option value="4">{t.facialSensibility4}</option>
-                </select>
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <div className="text-xs text-gray-600 mb-1">L</div>
+                    <select className="w-full border rounded-lg p-1 text-sm" value={brainstem.facialSensLeft} onChange={(e)=>setBrainstem({...brainstem, facialSensLeft: Number(e.target.value) as 0|1|2|3|4})}>
+                      <option value="0">{t.facialSensibility0}</option>
+                      <option value="1">{t.facialSensibility1}</option>
+                      <option value="2">{t.facialSensibility2}</option>
+                      <option value="3">{t.facialSensibility3}</option>
+                      <option value="4">{t.facialSensibility4}</option>
+                    </select>
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-xs text-gray-600 mb-1">R</div>
+                    <select className="w-full border rounded-lg p-1 text-sm" value={brainstem.facialSensRight} onChange={(e)=>setBrainstem({...brainstem, facialSensRight: Number(e.target.value) as 0|1|2|3|4})}>
+                      <option value="0">{t.facialSensibility0}</option>
+                      <option value="1">{t.facialSensibility1}</option>
+                      <option value="2">{t.facialSensibility2}</option>
+                      <option value="3">{t.facialSensibility3}</option>
+                      <option value="4">{t.facialSensibility4}</option>
+                    </select>
+                  </div>
+                </div>
               </div>
 
               <div className="space-y-1">
                 <div className="text-sm font-medium">{t.facialSymmetry}</div>
-                <select className="w-full border rounded-lg p-1 text-sm" value={brainstem.facialSymmetryLevel} onChange={(e)=>setBrainstem({...brainstem, facialSymmetryLevel: Number(e.target.value) as 0|1|2|3|4})}>
-                  <option value="0">{t.facialSymmetry0}</option>
-                  <option value="1">{t.facialSymmetry1}</option>
-                  <option value="2">{t.facialSymmetry2}</option>
-                  <option value="3">{t.facialSymmetry3}</option>
-                  <option value="4">{t.facialSymmetry4}</option>
-                </select>
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <div className="text-xs text-gray-600 mb-1">L</div>
+                    <select className="w-full border rounded-lg p-1 text-sm" value={brainstem.facialSymLeft} onChange={(e)=>setBrainstem({...brainstem, facialSymLeft: Number(e.target.value) as 0|1|2|3|4})}>
+                      <option value="0">{t.facialSymmetry0}</option>
+                      <option value="1">{t.facialSymmetry1}</option>
+                      <option value="2">{t.facialSymmetry2}</option>
+                      <option value="3">{t.facialSymmetry3}</option>
+                      <option value="4">{t.facialSymmetry4}</option>
+                    </select>
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-xs text-gray-600 mb-1">R</div>
+                    <select className="w-full border rounded-lg p-1 text-sm" value={brainstem.facialSymRight} onChange={(e)=>setBrainstem({...brainstem, facialSymRight: Number(e.target.value) as 0|1|2|3|4})}>
+                      <option value="0">{t.facialSymmetry0}</option>
+                      <option value="1">{t.facialSymmetry1}</option>
+                      <option value="2">{t.facialSymmetry2}</option>
+                      <option value="3">{t.facialSymmetry3}</option>
+                      <option value="4">{t.facialSymmetry4}</option>
+                    </select>
+                  </div>
+                </div>
               </div>
             </div>
 
             <div className="space-y-2">
               <div className="space-y-1">
                 <div className="text-sm font-medium">{t.hearing}</div>
-                <select className="w-full border rounded-lg p-1 text-sm" value={brainstem.hearingLevel} onChange={(e)=>setBrainstem({...brainstem, hearingLevel: Number(e.target.value) as 0|1|2|3|4})}>
-                  <option value="0">{t.hearing0}</option>
-                  <option value="1">{t.hearing1}</option>
-                  <option value="2">{t.hearing2}</option>
-                  <option value="3">{t.hearing3}</option>
-                  <option value="4">{t.hearing4}</option>
-                </select>
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <div className="text-xs text-gray-600 mb-1">L</div>
+                    <select className="w-full border rounded-lg p-1 text-sm" value={brainstem.hearingLeft} onChange={(e)=>setBrainstem({...brainstem, hearingLeft: Number(e.target.value) as 0|1|2|3|4})}>
+                      <option value="0">{t.hearing0}</option>
+                      <option value="1">{t.hearing1}</option>
+                      <option value="2">{t.hearing2}</option>
+                      <option value="3">{t.hearing3}</option>
+                      <option value="4">{t.hearing4}</option>
+                    </select>
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-xs text-gray-600 mb-1">R</div>
+                    <select className="w-full border rounded-lg p-1 text-sm" value={brainstem.hearingRight} onChange={(e)=>setBrainstem({...brainstem, hearingRight: Number(e.target.value) as 0|1|2|3|4})}>
+                      <option value="0">{t.hearing0}</option>
+                      <option value="1">{t.hearing1}</option>
+                      <option value="2">{t.hearing2}</option>
+                      <option value="3">{t.hearing3}</option>
+                      <option value="4">{t.hearing4}</option>
+                    </select>
+                  </div>
+                </div>
               </div>
 
               <div className="space-y-1">
@@ -1022,8 +1138,35 @@ export default function App() {
           {/* C */}
           <FSRowWrapper code="C">
             <div className="space-y-2">
-              <div className="text-sm font-medium">{t.minimalImpact}</div>
-              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={cerebellar.tremorOrAtaxiaOnCoordTests} onChange={(e)=>setCerebellar({ ...cerebellar, tremorOrAtaxiaOnCoordTests: e.target.checked })}/>{t.tremorAtaxiaCoord}</label>
+              <div className="space-y-1">
+                <div className="text-sm font-medium">{t.fingerNoseTest}</div>
+                <div className="flex gap-2 flex-wrap">
+                  <label className="flex items-center gap-1 text-sm">
+                    <input type="checkbox" checked={cerebellar.fingerNoseRightArm} onChange={(e)=>setCerebellar({...cerebellar, fingerNoseRightArm: e.target.checked})}/>
+                    RA
+                  </label>
+                  <label className="flex items-center gap-1 text-sm">
+                    <input type="checkbox" checked={cerebellar.fingerNoseLeftArm} onChange={(e)=>setCerebellar({...cerebellar, fingerNoseLeftArm: e.target.checked})}/>
+                    LA
+                  </label>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <div className="text-sm font-medium">{t.heelKneeTest}</div>
+                <div className="flex gap-2 flex-wrap">
+                  <label className="flex items-center gap-1 text-sm">
+                    <input type="checkbox" checked={cerebellar.heelKneeRightLeg} onChange={(e)=>setCerebellar({...cerebellar, heelKneeRightLeg: e.target.checked})}/>
+                    RL
+                  </label>
+                  <label className="flex items-center gap-1 text-sm">
+                    <input type="checkbox" checked={cerebellar.heelKneeLeftLeg} onChange={(e)=>setCerebellar({...cerebellar, heelKneeLeftLeg: e.target.checked})}/>
+                    LL
+                  </label>
+                </div>
+              </div>
+
+              <div className="text-sm font-medium mt-2">{t.minimalImpact}</div>
               <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={cerebellar.rombergFallTendency} onChange={(e)=>setCerebellar({ ...cerebellar, rombergFallTendency: e.target.checked })}/>{t.rombergFall}</label>
               <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={cerebellar.lineWalkDifficulty} onChange={(e)=>setCerebellar({ ...cerebellar, lineWalkDifficulty: e.target.checked })}/>{t.tandemDifficulty}</label>
               <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={cerebellar.mildCerebellarSignsNoFunction} onChange={(e)=>setCerebellar({ ...cerebellar, mildCerebellarSignsNoFunction: e.target.checked })}/>{t.mildCerebellarSigns}</label>

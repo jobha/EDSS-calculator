@@ -24,12 +24,22 @@ export function suggestV(fs: VisualForm): number {
 
 // Brainstem functional system scoring (holistic assessment)
 export function suggestBS(fs: BrainstemForm): number {
+  // Convert nystagmus to numeric level
+  const nystagmusLevel = fs.nystagmus === "spontaneous" ? 3 : fs.nystagmus === "clear" ? 2 : fs.nystagmus === "mild" ? 1 : 0;
+  const inoLevel = fs.ino ? 1 : 0;
+
+  // Get max level from each side for facial sens, sym, hearing
+  const facialSensLevel = Math.max(fs.facialSensLeft, fs.facialSensRight);
+  const facialSymLevel = Math.max(fs.facialSymLeft, fs.facialSymRight);
+  const hearingLevel = Math.max(fs.hearingLeft, fs.hearingRight);
+
   const maxLevel = Math.max(
     fs.eyeMotilityLevel,
-    fs.nystagmusLevel,
-    fs.facialSensibilityLevel,
-    fs.facialSymmetryLevel,
-    fs.hearingLevel,
+    nystagmusLevel,
+    inoLevel,
+    facialSensLevel,
+    facialSymLevel,
+    hearingLevel,
     fs.dysarthriaLevel,
     fs.dysphagiaLevel
   );
@@ -40,11 +50,11 @@ export function suggestBS(fs: BrainstemForm): number {
   // FS 4: Marked dysarthria or other marked deficits
   if (fs.dysarthriaLevel >= 3 || maxLevel === 4) return 4;
 
-  // FS 3: Severe nystagmus, marked eye muscle paresis, or moderate deficits in other cranial nerves
-  if (fs.nystagmusLevel === 3 || fs.eyeMotilityLevel === 3 || maxLevel === 3) return 3;
+  // FS 3: Severe/spontaneous nystagmus, marked eye muscle paresis, or moderate deficits in other cranial nerves
+  if (nystagmusLevel === 3 || fs.eyeMotilityLevel === 3 || maxLevel === 3) return 3;
 
-  // FS 2: Moderate nystagmus or other mild deficits
-  if (fs.nystagmusLevel === 2 || maxLevel === 2) return 2;
+  // FS 2: Clear nystagmus or other mild deficits
+  if (nystagmusLevel === 2 || maxLevel === 2) return 2;
 
   // FS 1: Abnormal findings on clinical examination without symptoms or functional loss
   if (maxLevel === 1) return 1;
@@ -106,14 +116,22 @@ export function suggestP(fs: PyramidalForm): number {
 }
 
 export function suggestC(fs: CerebellarForm): number {
+  // Count affected limbs from finger-nose and heel-knee tests
+  const ataxiaLimbCount = [
+    fs.fingerNoseRightArm,
+    fs.fingerNoseLeftArm,
+    fs.heelKneeRightLeg,
+    fs.heelKneeLeftLeg
+  ].filter(Boolean).length;
+
   // Standalone high grades
   if (fs.inabilityCoordinatedMovements) return 5;
-  if (fs.ataxiaThreeOrFourLimbs) return 4;
+  if (fs.ataxiaThreeOrFourLimbs || ataxiaLimbCount >= 3) return 4;
   if (fs.needsAssistanceDueAtaxia) return 4;
   // Moderate impact
   if (fs.limbAtaxiaAffectsFunction || fs.gaitAtaxia || fs.truncalAtaxiaEO) return 3;
-  // Mild objective signs
-  if (fs.tremorOrAtaxiaOnCoordTests || fs.rombergFallTendency || fs.lineWalkDifficulty) return 2;
+  // Mild objective signs - ataxia on testing or other mild signs
+  if (ataxiaLimbCount > 0 || fs.rombergFallTendency || fs.lineWalkDifficulty) return 2;
   // Minimal symptoms only
   if (fs.mildCerebellarSignsNoFunction) return 1;
   return 0;

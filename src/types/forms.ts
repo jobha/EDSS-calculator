@@ -11,11 +11,21 @@ export type VisualForm = {
 };
 
 export type BrainstemForm = {
+  // Eye motility
   eyeMotilityLevel: 0 | 1 | 2 | 3 | 4;
-  nystagmusLevel: 0 | 1 | 2 | 3;
-  facialSensibilityLevel: 0 | 1 | 2 | 3 | 4;
-  facialSymmetryLevel: 0 | 1 | 2 | 3 | 4;
-  hearingLevel: 0 | 1 | 2 | 3 | 4;
+  // Nystagmus
+  nystagmus: "none" | "mild" | "clear" | "spontaneous";
+  ino: boolean;
+  // Facial sensibility (separate levels for each side)
+  facialSensLeft: 0 | 1 | 2 | 3 | 4;
+  facialSensRight: 0 | 1 | 2 | 3 | 4;
+  // Facial symmetry (separate levels for each side)
+  facialSymLeft: 0 | 1 | 2 | 3 | 4;
+  facialSymRight: 0 | 1 | 2 | 3 | 4;
+  // Hearing (separate levels for each side)
+  hearingLeft: 0 | 1 | 2 | 3 | 4;
+  hearingRight: 0 | 1 | 2 | 3 | 4;
+  // Speech/swallowing
   dysarthriaLevel: 0 | 1 | 2 | 3 | 4;
   dysphagiaLevel: 0 | 1 | 2 | 3 | 4;
 };
@@ -59,7 +69,13 @@ export type PyramidalForm = {
 };
 
 export type CerebellarForm = {
-  tremorOrAtaxiaOnCoordTests: boolean;
+  // Finger-nose test
+  fingerNoseRightArm: boolean;
+  fingerNoseLeftArm: boolean;
+  // Heel-knee test
+  heelKneeRightLeg: boolean;
+  heelKneeLeftLeg: boolean;
+  // Other cerebellar signs
   rombergFallTendency: boolean;
   lineWalkDifficulty: boolean;
   limbAtaxiaAffectsFunction: boolean;
