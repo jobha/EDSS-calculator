@@ -30,6 +30,20 @@ export default function App() {
   const [language, setLanguage] = useState<Language>("en");
   const t = translations[language];
 
+  // Set language from URL parameter on mount
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const langParam = params.get('language') || params.get('lang');
+    if (langParam) {
+      const normalized = langParam.toLowerCase();
+      if (normalized === 'norwegian' || normalized === 'no' || normalized === 'nb') {
+        setLanguage('no');
+      } else if (normalized === 'english' || normalized === 'en') {
+        setLanguage('en');
+      }
+    }
+  }, []);
+
   // Translated assistance levels
   const assistanceLevels = [
     { id: "none" as const, label: t.noAssistance },
@@ -704,6 +718,32 @@ export default function App() {
   const [copied, setCopied] = useState(false);
   const [copiedExam, setCopiedExam] = useState(false);
 
+  // State export/import
+  const [copiedState, setCopiedState] = useState(false);
+  const [restoreInput, setRestoreInput] = useState('');
+  const [restoreError, setRestoreError] = useState('');
+
+  // Generate encoded state string
+  const stateString = useMemo(() => {
+    const state = {
+      visual,
+      brainstem,
+      pyramidal,
+      cerebellar,
+      sensory,
+      bb,
+      mental,
+      assistance,
+      walkingDistance: distance
+    };
+    try {
+      const jsonStr = JSON.stringify(state);
+      return 'v1:' + btoa(unescape(encodeURIComponent(jsonStr)));
+    } catch {
+      return '';
+    }
+  }, [visual, brainstem, pyramidal, cerebellar, sensory, bb, mental, assistance, distance]);
+
   async function copySummary() {
     try { await navigator.clipboard.writeText(summary); setCopied(true); setTimeout(()=>setCopied(false), 1600); }
     catch {
@@ -715,6 +755,58 @@ export default function App() {
     try { await navigator.clipboard.writeText(examinationText); setCopiedExam(true); setTimeout(()=>setCopiedExam(false), 1600); }
     catch {
       const ta = document.createElement('textarea'); ta.value = examinationText; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); setCopiedExam(true); setTimeout(()=>setCopiedExam(false), 1600);
+    }
+  }
+
+  async function copyState() {
+    try {
+      await navigator.clipboard.writeText(stateString);
+      setCopiedState(true);
+      setTimeout(() => setCopiedState(false), 1600);
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = stateString;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      setCopiedState(true);
+      setTimeout(() => setCopiedState(false), 1600);
+    }
+  }
+
+  function restoreState() {
+    setRestoreError('');
+    try {
+      const input = restoreInput.trim();
+      if (!input.startsWith('v1:')) {
+        setRestoreError(t.restoreError);
+        return;
+      }
+      const decoded = decodeURIComponent(escape(atob(input.substring(3))));
+      const state = JSON.parse(decoded);
+
+      // Validate required fields
+      if (!state.visual || !state.brainstem || !state.pyramidal || !state.cerebellar ||
+          !state.sensory || !state.bb || !state.mental || state.assistance === undefined ||
+          state.walkingDistance === undefined) {
+        setRestoreError(t.restoreError);
+        return;
+      }
+
+      // Restore all state
+      setVisual(state.visual);
+      setBrainstem(state.brainstem);
+      setPyramidal(state.pyramidal);
+      setCerebellar(state.cerebellar);
+      setSensory(state.sensory);
+      setBB(state.bb);
+      setMental(state.mental);
+      setAssistance(state.assistance);
+      setDistance(state.walkingDistance);
+      setRestoreInput('');
+    } catch {
+      setRestoreError(t.restoreError);
     }
   }
 
@@ -806,6 +898,14 @@ export default function App() {
     });
   }
 
+  function handleLanguageChange(newLang: Language) {
+    setLanguage(newLang);
+    // Update URL parameter without reloading
+    const url = new URL(window.location.href);
+    url.searchParams.set('language', newLang === 'no' ? 'norwegian' : 'english');
+    window.history.pushState({}, '', url.toString());
+  }
+
   // ---------- UI ----------
   const FSRowWrapper = ({ code, children }: { code: keyof typeof fsMeta; children: React.ReactNode }) => (
     <FSRow code={code} meta={fsMeta[code]} fs={fs} setFs={setFs} overrideLabel={t.overrideScore}>
@@ -828,7 +928,7 @@ export default function App() {
             <div className="flex items-center gap-4">
               <select
                 value={language}
-                onChange={(e) => setLanguage(e.target.value as Language)}
+                onChange={(e) => handleLanguageChange(e.target.value as Language)}
                 className="px-3 py-2 rounded-xl border bg-white hover:bg-gray-100 text-sm font-medium cursor-pointer"
               >
                 <option value="en">English</option>
@@ -1438,6 +1538,54 @@ export default function App() {
                 <div className="text-xs font-semibold mb-2">{t.fullExamText}</div>
                 <pre className="whitespace-pre-wrap text-xs">{examinationText}</pre>
                 <button onClick={copyExamination} className="mt-2 px-3 py-2 rounded-xl border text-sm hover:bg-gray-100">{copiedExam ? t.copied : t.copyExamText}</button>
+              </div>
+            </section>
+
+            {/* State Save/Restore Section */}
+            <section className="mt-8 pt-6 border-t border-gray-200">
+              <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+                <div className="text-xs font-medium text-gray-600">{t.saveRestoreState}</div>
+
+                <div className="space-y-2">
+                  <div className="text-xs text-gray-500">{t.formStateString}</div>
+                  <div className="flex gap-2">
+                    <textarea
+                      readOnly
+                      value={stateString}
+                      className="flex-1 px-2 py-1 text-xs font-mono bg-white border border-gray-300 rounded resize-none"
+                      rows={1}
+                      style={{ minHeight: '32px' }}
+                    />
+                    <button
+                      onClick={copyState}
+                      className="px-3 py-1 text-xs bg-white border border-gray-300 rounded hover:bg-gray-100 whitespace-nowrap"
+                    >
+                      {copiedState ? t.copied : 'Copy'}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="text-xs text-gray-500">{t.restoreFromString}</div>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={restoreInput}
+                      onChange={(e) => setRestoreInput(e.target.value)}
+                      placeholder={t.pasteHere}
+                      className="flex-1 px-2 py-1 text-xs font-mono bg-white border border-gray-300 rounded"
+                    />
+                    <button
+                      onClick={restoreState}
+                      className="px-3 py-1 text-xs bg-white border border-gray-300 rounded hover:bg-gray-100 whitespace-nowrap"
+                    >
+                      Restore
+                    </button>
+                  </div>
+                  {restoreError && (
+                    <div className="text-xs text-red-600">{restoreError}</div>
+                  )}
+                </div>
               </div>
             </section>
           </section>

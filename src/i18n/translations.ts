@@ -316,6 +316,12 @@ export const translations = {
     infoEDSSLowFSHigh: "EDSS is {edss}, but maximum FS is {maxFS}. This is possible but unusual.",
     infoEDSSHighFSLow: "EDSS is {edss} (requires ambulation limitations), but all FS ≤2. Check ambulation status.",
     suggestionDocumentDistance: "Consider documenting the maximum walking distance for more accurate EDSS scoring.",
+    // State save/restore
+    saveRestoreState: "Save/Restore Form State",
+    formStateString: "Form state (copy to save):",
+    restoreFromString: "Restore from saved state",
+    restoreError: "Error: Invalid or corrupted state string",
+    pasteHere: "Paste saved state here...",
   },
   no: {
     title: "EDSS-Kalkulator",
@@ -629,5 +635,11 @@ export const translations = {
     infoEDSSLowFSHigh: "EDSS er {edss}, men maksimal FS er {maxFS}. Dette er mulig men uvanlig.",
     infoEDSSHighFSLow: "EDSS er {edss} (krever gangbegrensninger), men alle FS ≤2. Sjekk gangestatus.",
     suggestionDocumentDistance: "Vurder å dokumentere maksimal gangdistanse for mer nøyaktig EDSS-skåring.",
+    // State save/restore
+    saveRestoreState: "Lagre/Gjenopprett skjema",
+    formStateString: "Skjematilstand (kopier for å lagre):",
+    restoreFromString: "Gjenopprett fra lagret tilstand",
+    restoreError: "Feil: Ugyldig eller ødelagt tilstandsstreng",
+    pasteHere: "Lim inn lagret tilstand her...",
   }
 };
