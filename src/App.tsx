@@ -909,6 +909,30 @@ export default function App() {
               </div>
 
               <div className="space-y-1">
+                <div className="text-sm font-medium">{t.dysarthria}</div>
+                <select className="w-full border rounded-lg p-1 text-sm" value={brainstem.dysarthriaLevel} onChange={(e)=>setBrainstem({...brainstem, dysarthriaLevel: Number(e.target.value) as 0|1|2|3|4})}>
+                  <option value="0">{t.dysarthria0}</option>
+                  <option value="1">{t.dysarthria1}</option>
+                  <option value="2">{t.dysarthria2}</option>
+                  <option value="3">{t.dysarthria3}</option>
+                  <option value="4">{t.dysarthria4}</option>
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <div className="text-sm font-medium">{t.dysphagia}</div>
+                <select className="w-full border rounded-lg p-1 text-sm" value={brainstem.dysphagiaLevel} onChange={(e)=>setBrainstem({...brainstem, dysphagiaLevel: Number(e.target.value) as 0|1|2|3|4})}>
+                  <option value="0">{t.dysphagia0}</option>
+                  <option value="1">{t.dysphagia1}</option>
+                  <option value="2">{t.dysphagia2}</option>
+                  <option value="3">{t.dysphagia3}</option>
+                  <option value="4">{t.dysphagia4}</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="space-y-1">
                 <div className="text-sm font-medium">{t.facialSensibility}</div>
                 <div className="flex gap-2">
                   <div className="flex-1">
@@ -959,9 +983,7 @@ export default function App() {
                   </div>
                 </div>
               </div>
-            </div>
 
-            <div className="space-y-2">
               <div className="space-y-1">
                 <div className="text-sm font-medium">{t.hearing}</div>
                 <div className="flex gap-2">
@@ -986,28 +1008,6 @@ export default function App() {
                     </select>
                   </div>
                 </div>
-              </div>
-
-              <div className="space-y-1">
-                <div className="text-sm font-medium">{t.dysarthria}</div>
-                <select className="w-full border rounded-lg p-1 text-sm" value={brainstem.dysarthriaLevel} onChange={(e)=>setBrainstem({...brainstem, dysarthriaLevel: Number(e.target.value) as 0|1|2|3|4})}>
-                  <option value="0">{t.dysarthria0}</option>
-                  <option value="1">{t.dysarthria1}</option>
-                  <option value="2">{t.dysarthria2}</option>
-                  <option value="3">{t.dysarthria3}</option>
-                  <option value="4">{t.dysarthria4}</option>
-                </select>
-              </div>
-
-              <div className="space-y-1">
-                <div className="text-sm font-medium">{t.dysphagia}</div>
-                <select className="w-full border rounded-lg p-1 text-sm" value={brainstem.dysphagiaLevel} onChange={(e)=>setBrainstem({...brainstem, dysphagiaLevel: Number(e.target.value) as 0|1|2|3|4})}>
-                  <option value="0">{t.dysphagia0}</option>
-                  <option value="1">{t.dysphagia1}</option>
-                  <option value="2">{t.dysphagia2}</option>
-                  <option value="3">{t.dysphagia3}</option>
-                  <option value="4">{t.dysphagia4}</option>
-                </select>
               </div>
             </div>
           </FSRowWrapper>

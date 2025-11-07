@@ -1,0 +1,10 @@
+# Commit message template
+# First line: Brief summary (50 chars or less)
+#
+# Detailed description (wrap at 72 chars)
+# - Use bullet points for multiple changes
+# - Focus on what and why, not how
+#
+# DO NOT include:
+# - "Generated with Claude Code" footer
+# - "Co-Authored-By: Claude" attribution
