@@ -439,7 +439,7 @@ export const translations = {
     bowelIncontinenceWeekly: "Tarminkontinens ukentlig",
     lossBowelFunction: "Tap av tarmfunksjon",
     // Mental
-    fatigue: "Utmattelse",
+    fatigue: "Fatigue",
     cognitiveFunction: "Kognitiv funksjon",
     mildFatigue: "Mild utmattelse (påvirker <50% av daglig aktivitet eller arbeid)",
     moderateSevereFatigue: "Moderat til alvorlig utmattelse (påvirker ≥50% av daglig aktivitet eller arbeid)",

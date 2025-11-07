@@ -751,7 +751,12 @@ export default function App() {
 
   return (
     <>
-      <style>{`html { overflow-anchor: none; }`}</style>
+      <style>{`
+        html { overflow-anchor: none; }
+        html, body { scroll-behavior: auto !important; }
+        input[type="checkbox"]:focus { scroll-margin: 0; }
+        * { scroll-margin-top: 0 !important; }
+      `}</style>
       <div className="min-h-screen w-full bg-gray-50 p-4 md:p-8">
         <div className="max-w-5xl mx-auto space-y-6" style={{ overflowAnchor: 'none' }}>
           <header className="flex items-center justify-between">
@@ -1192,19 +1197,19 @@ export default function App() {
           <FSRowWrapper code="BB">
             <div className="space-y-1">
               <div className="text-sm font-medium">{t.bladderSymptoms}</div>
-              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={bb.mildUrge} onChange={(e)=>setBB({ ...bb, mildUrge: e.target.checked })}/>{t.mildUrge}</label>
-              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={bb.moderateUrge} onChange={(e)=>setBB({ ...bb, moderateUrge: e.target.checked })}/>{t.moderateUrge}</label>
-              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={bb.rareIncontinence} onChange={(e)=>setBB({ ...bb, rareIncontinence: e.target.checked })}/>{t.rareIncontinence}</label>
-              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={bb.frequentIncontinence} onChange={(e)=>setBB({ ...bb, frequentIncontinence: e.target.checked })}/>{t.frequentIncontinence}</label>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={bb.mildUrge} onChange={(e)=>setBB({ ...bb, mildUrge: e.target.checked, moderateUrge: e.target.checked ? false : bb.moderateUrge })}/>{t.mildUrge}</label>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={bb.moderateUrge} onChange={(e)=>setBB({ ...bb, moderateUrge: e.target.checked, mildUrge: e.target.checked ? false : bb.mildUrge })}/>{t.moderateUrge}</label>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={bb.rareIncontinence} onChange={(e)=>setBB({ ...bb, rareIncontinence: e.target.checked, frequentIncontinence: e.target.checked ? false : bb.frequentIncontinence })}/>{t.rareIncontinence}</label>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={bb.frequentIncontinence} onChange={(e)=>setBB({ ...bb, frequentIncontinence: e.target.checked, rareIncontinence: e.target.checked ? false : bb.rareIncontinence })}/>{t.frequentIncontinence}</label>
               <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={bb.intermittentCatheterization} onChange={(e)=>setBB({ ...bb, intermittentCatheterization: e.target.checked })}/>{t.intermittentCath}</label>
               <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={bb.permanentCatheter} onChange={(e)=>setBB({ ...bb, permanentCatheter: e.target.checked })}/>{t.permanentCath}</label>
               <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={bb.lossBladderFunction} onChange={(e)=>setBB({ ...bb, lossBladderFunction: e.target.checked })}/>{t.lossBladderFunction}</label>
             </div>
             <div className="space-y-1">
               <div className="text-sm font-medium">{t.bowelSymptoms}</div>
-              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={bb.mildConstipation} onChange={(e)=>setBB({ ...bb, mildConstipation: e.target.checked })}/>{t.mildConstipation}</label>
-              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={bb.moderateConstipation} onChange={(e)=>setBB({ ...bb, moderateConstipation: e.target.checked })}/>{t.moderateConstipation}</label>
-              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={bb.severeConstipation} onChange={(e)=>setBB({ ...bb, severeConstipation: e.target.checked })}/>{t.severeConstipation}</label>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={bb.mildConstipation} onChange={(e)=>setBB({ ...bb, mildConstipation: e.target.checked, moderateConstipation: e.target.checked ? false : bb.moderateConstipation, severeConstipation: e.target.checked ? false : bb.severeConstipation })}/>{t.mildConstipation}</label>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={bb.moderateConstipation} onChange={(e)=>setBB({ ...bb, moderateConstipation: e.target.checked, mildConstipation: e.target.checked ? false : bb.mildConstipation, severeConstipation: e.target.checked ? false : bb.severeConstipation })}/>{t.moderateConstipation}</label>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={bb.severeConstipation} onChange={(e)=>setBB({ ...bb, severeConstipation: e.target.checked, mildConstipation: e.target.checked ? false : bb.mildConstipation, moderateConstipation: e.target.checked ? false : bb.moderateConstipation })}/>{t.severeConstipation}</label>
               <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={bb.needsHelpForBowelMovement} onChange={(e)=>setBB({ ...bb, needsHelpForBowelMovement: e.target.checked })}/>{t.needsHelpBM}</label>
               <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={bb.bowelIncontinenceWeekly} onChange={(e)=>setBB({ ...bb, bowelIncontinenceWeekly: e.target.checked })}/>{t.bowelIncontinenceWeekly}</label>
               <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={bb.lossBowelFunction} onChange={(e)=>setBB({ ...bb, lossBowelFunction: e.target.checked })}/>{t.lossBowelFunction}</label>
