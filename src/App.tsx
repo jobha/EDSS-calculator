@@ -336,8 +336,9 @@ export default function App() {
 
   // Summary (multi-line, copy-ready)
   const summary = useMemo(() => {
+    const rawDistance = Number(distance);
     const ambFinding = assistance === 'none'
-      ? (parsedDistance != null && parsedDistance > 2000 ? t.walkingDistanceNotLimited : parsedDistance != null ? `${t.unaided} ${parsedDistance} m` : `${t.unaided} (n/a)`)
+      ? (Number.isFinite(rawDistance) && rawDistance > 2000 ? t.walkingDistanceNotLimited : parsedDistance != null ? `${t.unaided} ${parsedDistance} m` : `${t.unaided} (n/a)`)
       : (assistanceLevels.find(a=>a.id===assistance)?.label ?? String(assistance));
 
     // Pyramidal summary
@@ -356,24 +357,61 @@ export default function App() {
       pyramidal.anklePlantarflexionR, pyramidal.anklePlantarflexionL,
     );
 
+    // Find weakest muscles - report specific muscles, not just limbs
+    let weaknessText = '';
+    if (minMRC < 5) {
+      const muscles = [
+        { val: pyramidal.shoulderAbductionR, name: t.shoulderAbduction, side: t.rightAbbrev },
+        { val: pyramidal.shoulderAbductionL, name: t.shoulderAbduction, side: t.leftAbbrev },
+        { val: pyramidal.shoulderExternalRotationR, name: t.shoulderExternalRotation, side: t.rightAbbrev },
+        { val: pyramidal.shoulderExternalRotationL, name: t.shoulderExternalRotation, side: t.leftAbbrev },
+        { val: pyramidal.elbowFlexionR, name: t.elbowFlexion, side: t.rightAbbrev },
+        { val: pyramidal.elbowFlexionL, name: t.elbowFlexion, side: t.leftAbbrev },
+        { val: pyramidal.elbowExtensionR, name: t.elbowExtension, side: t.rightAbbrev },
+        { val: pyramidal.elbowExtensionL, name: t.elbowExtension, side: t.leftAbbrev },
+        { val: pyramidal.wristExtensionR, name: t.wristExtension, side: t.rightAbbrev },
+        { val: pyramidal.wristExtensionL, name: t.wristExtension, side: t.leftAbbrev },
+        { val: pyramidal.fingerAbductionR, name: t.fingerAbduction, side: t.rightAbbrev },
+        { val: pyramidal.fingerAbductionL, name: t.fingerAbduction, side: t.leftAbbrev },
+        { val: pyramidal.hipFlexionR, name: t.hipFlexion, side: t.rightAbbrev },
+        { val: pyramidal.hipFlexionL, name: t.hipFlexion, side: t.leftAbbrev },
+        { val: pyramidal.hipAbductionR, name: t.hipAbduction, side: t.rightAbbrev },
+        { val: pyramidal.hipAbductionL, name: t.hipAbduction, side: t.leftAbbrev },
+        { val: pyramidal.kneeExtensionR, name: t.kneeExtension, side: t.rightAbbrev },
+        { val: pyramidal.kneeExtensionL, name: t.kneeExtension, side: t.leftAbbrev },
+        { val: pyramidal.kneeFlexionR, name: t.kneeFlexion, side: t.rightAbbrev },
+        { val: pyramidal.kneeFlexionL, name: t.kneeFlexion, side: t.leftAbbrev },
+        { val: pyramidal.ankleDorsiflexionR, name: t.ankleDorsiflexion, side: t.rightAbbrev },
+        { val: pyramidal.ankleDorsiflexionL, name: t.ankleDorsiflexion, side: t.leftAbbrev },
+        { val: pyramidal.anklePlantarflexionR, name: t.anklePlantarflexion, side: t.rightAbbrev },
+        { val: pyramidal.anklePlantarflexionL, name: t.anklePlantarflexion, side: t.leftAbbrev },
+      ];
+
+      const weakMuscles = muscles.filter(m => m.val < 5).map(m => `${m.name} ${m.side} ${t.grade} ${m.val}`);
+
+      if (weakMuscles.length > 0) {
+        weaknessText = weakMuscles.join(', ');
+      }
+    }
+
     // UMN signs
     const hyperreflexiaSides = [];
-    if (pyramidal.hyperreflexiaLeft) hyperreflexiaSides.push('L');
-    if (pyramidal.hyperreflexiaRight) hyperreflexiaSides.push('R');
+    if (pyramidal.hyperreflexiaLeft) hyperreflexiaSides.push(t.leftAbbrev);
+    if (pyramidal.hyperreflexiaRight) hyperreflexiaSides.push(t.rightAbbrev);
     const hyperreflexiaText = hyperreflexiaSides.length > 0 ? `${t.hyperreflexia.toLowerCase()} ${hyperreflexiaSides.join('+')}` : '';
 
     const babinskiSides = [];
-    if (pyramidal.babinskiLeft) babinskiSides.push('L');
-    if (pyramidal.babinskiRight) babinskiSides.push('R');
+    if (pyramidal.babinskiLeft) babinskiSides.push(t.leftAbbrev);
+    if (pyramidal.babinskiRight) babinskiSides.push(t.rightAbbrev);
     const babinskiText = babinskiSides.length > 0 ? `${t.babinski} ${babinskiSides.join('+')}` : '';
 
     const clonusSides = [];
-    if (pyramidal.clonusLeft) clonusSides.push('L');
-    if (pyramidal.clonusRight) clonusSides.push('R');
+    if (pyramidal.clonusLeft) clonusSides.push(t.leftAbbrev);
+    if (pyramidal.clonusRight) clonusSides.push(t.rightAbbrev);
     const clonusText = clonusSides.length > 0 ? `${t.clonus.toLowerCase()} ${clonusSides.join('+')}` : '';
 
     const pFlags = [
-      minMRC < 5 && `${t.minGrade} ${minMRC}`,
+      weaknessText,
       hyperreflexiaText,
       babinskiText,
       clonusText,
@@ -399,16 +437,16 @@ export default function App() {
 
     // Format sides with levels (e.g., "L:2+R:3" or "L:2" or "R:3")
     const facialSensSides = [
-      brainstem.facialSensLeft > 0 && `L:${brainstem.facialSensLeft}`,
-      brainstem.facialSensRight > 0 && `R:${brainstem.facialSensRight}`
+      brainstem.facialSensLeft > 0 && `${t.leftAbbrev}:${brainstem.facialSensLeft}`,
+      brainstem.facialSensRight > 0 && `${t.rightAbbrev}:${brainstem.facialSensRight}`
     ].filter(Boolean).join('+');
     const facialSymSides = [
-      brainstem.facialSymLeft > 0 && `L:${brainstem.facialSymLeft}`,
-      brainstem.facialSymRight > 0 && `R:${brainstem.facialSymRight}`
+      brainstem.facialSymLeft > 0 && `${t.leftAbbrev}:${brainstem.facialSymLeft}`,
+      brainstem.facialSymRight > 0 && `${t.rightAbbrev}:${brainstem.facialSymRight}`
     ].filter(Boolean).join('+');
     const hearingSides = [
-      brainstem.hearingLeft > 0 && `L:${brainstem.hearingLeft}`,
-      brainstem.hearingRight > 0 && `R:${brainstem.hearingRight}`
+      brainstem.hearingLeft > 0 && `${t.leftAbbrev}:${brainstem.hearingLeft}`,
+      brainstem.hearingRight > 0 && `${t.rightAbbrev}:${brainstem.hearingRight}`
     ].filter(Boolean).join('+');
 
     const bsFindings = [
@@ -424,8 +462,8 @@ export default function App() {
     const bsSummary = bsFindings || t.normal;
 
     // Cerebellar summary
-    const fingerNoseLimbs = [cerebellar.fingerNoseRightArm && 'RA', cerebellar.fingerNoseLeftArm && 'LA'].filter(Boolean);
-    const heelKneeLimbs = [cerebellar.heelKneeRightLeg && 'RL', cerebellar.heelKneeLeftLeg && 'LL'].filter(Boolean);
+    const fingerNoseLimbs = [cerebellar.fingerNoseRightArm && t.rightArmAbbrev, cerebellar.fingerNoseLeftArm && t.leftArmAbbrev].filter(Boolean);
+    const heelKneeLimbs = [cerebellar.heelKneeRightLeg && t.rightLegAbbrev, cerebellar.heelKneeLeftLeg && t.leftLegAbbrev].filter(Boolean);
     const ataxiaLimbs = [...fingerNoseLimbs, ...heelKneeLimbs];
 
     const cFindings = [
@@ -566,22 +604,22 @@ export default function App() {
 
     // Facial sensibility - show sides with levels
     const facialSensExamSides = [
-      brainstem.facialSensLeft > 0 && `L (${t.level} ${brainstem.facialSensLeft})`,
-      brainstem.facialSensRight > 0 && `R (${t.level} ${brainstem.facialSensRight})`
+      brainstem.facialSensLeft > 0 && `${t.leftAbbrev} (${t.level} ${brainstem.facialSensLeft})`,
+      brainstem.facialSensRight > 0 && `${t.rightAbbrev} (${t.level} ${brainstem.facialSensRight})`
     ].filter(Boolean);
     if (facialSensExamSides.length > 0) bsParts.push(`${t.facialSensibilityDeficit} ${facialSensExamSides.join(', ')}`);
 
     // Facial symmetry - show sides with levels
     const facialSymExamSides = [
-      brainstem.facialSymLeft > 0 && `L (${t.level} ${brainstem.facialSymLeft})`,
-      brainstem.facialSymRight > 0 && `R (${t.level} ${brainstem.facialSymRight})`
+      brainstem.facialSymLeft > 0 && `${t.leftAbbrev} (${t.level} ${brainstem.facialSymLeft})`,
+      brainstem.facialSymRight > 0 && `${t.rightAbbrev} (${t.level} ${brainstem.facialSymRight})`
     ].filter(Boolean);
     if (facialSymExamSides.length > 0) bsParts.push(`${t.facialAsymmetry} ${facialSymExamSides.join(', ')}`);
 
     // Hearing - show sides with levels
     const hearingExamSides = [
-      brainstem.hearingLeft > 0 && `L (${t.level} ${brainstem.hearingLeft})`,
-      brainstem.hearingRight > 0 && `R (${t.level} ${brainstem.hearingRight})`
+      brainstem.hearingLeft > 0 && `${t.leftAbbrev} (${t.level} ${brainstem.hearingLeft})`,
+      brainstem.hearingRight > 0 && `${t.rightAbbrev} (${t.level} ${brainstem.hearingRight})`
     ].filter(Boolean);
     if (hearingExamSides.length > 0) bsParts.push(`${t.hearingImpairment} ${hearingExamSides.join(', ')}`);
 
@@ -655,7 +693,7 @@ export default function App() {
         allFindings.push(`${t.reducedStrength} ${joinWithAnd(weaknessFindings, t.and)}`);
       }
       if (umnSigns.length > 0) allFindings.push(capitalize(umnSigns.join(', ')));
-      sections.push(allFindings.join('; ') + '.');
+      sections.push(allFindings.join(', ') + '.');
     } else {
       sections.push(capitalize(`${t.normal} ${t.withFullStrength}.`));
     }
@@ -744,7 +782,7 @@ export default function App() {
       const parts = [];
       if (bladderParts.length > 0) parts.push(bladderParts.join(', '));
       if (bowelParts.length > 0) parts.push(bowelParts.join(', '));
-      sections.push(capitalize(parts.join('; ')) + '.');
+      sections.push(capitalize(parts.join(', ')) + '.');
     } else {
       sections.push(t.bowelBladderNormal + '.');
     }
@@ -764,14 +802,19 @@ export default function App() {
       const parts = [];
       if (cogParts.length > 0) parts.push(cogParts.join(', '));
       if (fatigueParts.length > 0) parts.push(fatigueParts.join(', '));
-      sections.push(capitalize(parts.join('; ')) + '.');
+      sections.push(capitalize(parts.join(', ')) + '.');
     } else {
       sections.push(t.cognitiveNormal + '.');
     }
 
     // Ambulation
     if (assistance === 'none') {
-      sections.push(capitalize(`${t.walks} ${parsedDistance ?? t.unknown} ${t.meters} ${t.withoutAssistance}.`));
+      const rawDistance = Number(distance);
+      if (Number.isFinite(rawDistance) && rawDistance > 2000) {
+        sections.push(capitalize(`${t.walkingDistanceNotLimited}.`));
+      } else {
+        sections.push(capitalize(`${t.walks} ${parsedDistance ?? t.unknown} ${t.meters} ${t.withoutAssistance}.`));
+      }
     } else {
       const assistLabel = assistanceLevels.find(a => a.id === assistance)?.label || assistance;
       sections.push(capitalize(assistLabel) + '.');
@@ -781,7 +824,7 @@ export default function App() {
     sections.push(`EDSS: ${edss.toFixed(1)}`);
 
     return sections.join(' ');
-  }, [visual, brainstem, pyramidal, cerebellar, sensory, bb, mental, assistance, parsedDistance, edss, t, assistanceLevels]);
+  }, [visual, brainstem, pyramidal, cerebellar, sensory, bb, mental, assistance, distance, parsedDistance, edss, t, assistanceLevels]);
 
   const [copied, setCopied] = useState(false);
   const [copiedExam, setCopiedExam] = useState(false);
@@ -1108,7 +1151,7 @@ export default function App() {
                 <div className="text-sm font-medium">{t.facialSensibility}</div>
                 <div className="flex gap-2">
                   <div className="flex-1">
-                    <div className="text-xs text-gray-600 mb-1">L</div>
+                    <div className="text-xs text-gray-600 mb-1">{t.leftAbbrev}</div>
                     <select className="w-full border rounded-lg p-1 text-sm" value={brainstem.facialSensLeft} onChange={(e)=>setBrainstem({...brainstem, facialSensLeft: Number(e.target.value) as 0|1|2|3|4})}>
                       <option value="0">{t.facialSensibility0}</option>
                       <option value="1">{t.facialSensibility1}</option>
@@ -1118,7 +1161,7 @@ export default function App() {
                     </select>
                   </div>
                   <div className="flex-1">
-                    <div className="text-xs text-gray-600 mb-1">R</div>
+                    <div className="text-xs text-gray-600 mb-1">{t.rightAbbrev}</div>
                     <select className="w-full border rounded-lg p-1 text-sm" value={brainstem.facialSensRight} onChange={(e)=>setBrainstem({...brainstem, facialSensRight: Number(e.target.value) as 0|1|2|3|4})}>
                       <option value="0">{t.facialSensibility0}</option>
                       <option value="1">{t.facialSensibility1}</option>
@@ -1134,7 +1177,7 @@ export default function App() {
                 <div className="text-sm font-medium">{t.facialSymmetry}</div>
                 <div className="flex gap-2">
                   <div className="flex-1">
-                    <div className="text-xs text-gray-600 mb-1">L</div>
+                    <div className="text-xs text-gray-600 mb-1">{t.leftAbbrev}</div>
                     <select className="w-full border rounded-lg p-1 text-sm" value={brainstem.facialSymLeft} onChange={(e)=>setBrainstem({...brainstem, facialSymLeft: Number(e.target.value) as 0|1|2|3|4})}>
                       <option value="0">{t.facialSymmetry0}</option>
                       <option value="1">{t.facialSymmetry1}</option>
@@ -1144,7 +1187,7 @@ export default function App() {
                     </select>
                   </div>
                   <div className="flex-1">
-                    <div className="text-xs text-gray-600 mb-1">R</div>
+                    <div className="text-xs text-gray-600 mb-1">{t.rightAbbrev}</div>
                     <select className="w-full border rounded-lg p-1 text-sm" value={brainstem.facialSymRight} onChange={(e)=>setBrainstem({...brainstem, facialSymRight: Number(e.target.value) as 0|1|2|3|4})}>
                       <option value="0">{t.facialSymmetry0}</option>
                       <option value="1">{t.facialSymmetry1}</option>
@@ -1160,7 +1203,7 @@ export default function App() {
                 <div className="text-sm font-medium">{t.hearing}</div>
                 <div className="flex gap-2">
                   <div className="flex-1">
-                    <div className="text-xs text-gray-600 mb-1">L</div>
+                    <div className="text-xs text-gray-600 mb-1">{t.leftAbbrev}</div>
                     <select className="w-full border rounded-lg p-1 text-sm" value={brainstem.hearingLeft} onChange={(e)=>setBrainstem({...brainstem, hearingLeft: Number(e.target.value) as 0|1|2|3|4})}>
                       <option value="0">{t.hearing0}</option>
                       <option value="1">{t.hearing1}</option>
@@ -1170,7 +1213,7 @@ export default function App() {
                     </select>
                   </div>
                   <div className="flex-1">
-                    <div className="text-xs text-gray-600 mb-1">R</div>
+                    <div className="text-xs text-gray-600 mb-1">{t.rightAbbrev}</div>
                     <select className="w-full border rounded-lg p-1 text-sm" value={brainstem.hearingRight} onChange={(e)=>setBrainstem({...brainstem, hearingRight: Number(e.target.value) as 0|1|2|3|4})}>
                       <option value="0">{t.hearing0}</option>
                       <option value="1">{t.hearing1}</option>
@@ -1194,8 +1237,8 @@ export default function App() {
                   <thead className="text-left">
                     <tr>
                       <th className="py-1 pr-2">{t.movement}</th>
-                      <th className="py-1 pr-2">R</th>
-                      <th className="py-1 pr-2">L</th>
+                      <th className="py-1 pr-2">{t.rightAbbrev}</th>
+                      <th className="py-1 pr-2">{t.leftAbbrev}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1234,8 +1277,8 @@ export default function App() {
                   <thead className="text-left">
                     <tr>
                       <th className="py-1 pr-2">{t.movement}</th>
-                      <th className="py-1 pr-2">R</th>
-                      <th className="py-1 pr-2">L</th>
+                      <th className="py-1 pr-2">{t.rightAbbrev}</th>
+                      <th className="py-1 pr-2">{t.leftAbbrev}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1281,7 +1324,7 @@ export default function App() {
                         checked={pyramidal[leftKey]}
                         onChange={(e)=> setPyramidal(prev=> ({...prev, [leftKey]: e.target.checked}))}
                       />
-                      <span>L</span>
+                      <span>{t.leftAbbrev}</span>
                     </label>
                     <label className="flex items-center gap-1">
                       <input
@@ -1289,7 +1332,7 @@ export default function App() {
                         checked={pyramidal[rightKey]}
                         onChange={(e)=> setPyramidal(prev=> ({...prev, [rightKey]: e.target.checked}))}
                       />
-                      <span>R</span>
+                      <span>{t.rightAbbrev}</span>
                     </label>
                   </div>
                 ))}
@@ -1315,11 +1358,11 @@ export default function App() {
                 <div className="flex gap-2 flex-wrap">
                   <label className="flex items-center gap-1 text-sm">
                     <input type="checkbox" checked={cerebellar.fingerNoseRightArm} onChange={(e)=>setCerebellar({...cerebellar, fingerNoseRightArm: e.target.checked})}/>
-                    RA
+                    {t.rightArmAbbrev}
                   </label>
                   <label className="flex items-center gap-1 text-sm">
                     <input type="checkbox" checked={cerebellar.fingerNoseLeftArm} onChange={(e)=>setCerebellar({...cerebellar, fingerNoseLeftArm: e.target.checked})}/>
-                    LA
+                    {t.leftArmAbbrev}
                   </label>
                 </div>
               </div>
@@ -1329,11 +1372,11 @@ export default function App() {
                 <div className="flex gap-2 flex-wrap">
                   <label className="flex items-center gap-1 text-sm">
                     <input type="checkbox" checked={cerebellar.heelKneeRightLeg} onChange={(e)=>setCerebellar({...cerebellar, heelKneeRightLeg: e.target.checked})}/>
-                    RL
+                    {t.rightLegAbbrev}
                   </label>
                   <label className="flex items-center gap-1 text-sm">
                     <input type="checkbox" checked={cerebellar.heelKneeLeftLeg} onChange={(e)=>setCerebellar({...cerebellar, heelKneeLeftLeg: e.target.checked})}/>
-                    LL
+                    {t.leftLegAbbrev}
                   </label>
                 </div>
               </div>
@@ -1378,7 +1421,7 @@ export default function App() {
                     updated.vibCount = [updated.vibRightArm, updated.vibLeftArm, updated.vibRightLeg, updated.vibLeftLeg].filter(Boolean).length;
                     setSensory(updated);
                   }}/>
-                  <span>RA</span>
+                  <span>{t.rightArmAbbrev}</span>
                 </label>
                 <label className="flex items-center gap-1">
                   <input type="checkbox" checked={sensory.vibLeftArm} onChange={(e)=> {
@@ -1386,7 +1429,7 @@ export default function App() {
                     updated.vibCount = [updated.vibRightArm, updated.vibLeftArm, updated.vibRightLeg, updated.vibLeftLeg].filter(Boolean).length;
                     setSensory(updated);
                   }}/>
-                  <span>LA</span>
+                  <span>{t.leftArmAbbrev}</span>
                 </label>
                 <label className="flex items-center gap-1">
                   <input type="checkbox" checked={sensory.vibRightLeg} onChange={(e)=> {
@@ -1394,7 +1437,7 @@ export default function App() {
                     updated.vibCount = [updated.vibRightArm, updated.vibLeftArm, updated.vibRightLeg, updated.vibLeftLeg].filter(Boolean).length;
                     setSensory(updated);
                   }}/>
-                  <span>RL</span>
+                  <span>{t.rightLegAbbrev}</span>
                 </label>
                 <label className="flex items-center gap-1">
                   <input type="checkbox" checked={sensory.vibLeftLeg} onChange={(e)=> {
@@ -1402,7 +1445,7 @@ export default function App() {
                     updated.vibCount = [updated.vibRightArm, updated.vibLeftArm, updated.vibRightLeg, updated.vibLeftLeg].filter(Boolean).length;
                     setSensory(updated);
                   }}/>
-                  <span>LL</span>
+                  <span>{t.leftLegAbbrev}</span>
                 </label>
               </div>
             </div>
@@ -1428,7 +1471,7 @@ export default function App() {
                     updated.ptCount = [updated.ptRightArm, updated.ptLeftArm, updated.ptRightLeg, updated.ptLeftLeg].filter(Boolean).length;
                     setSensory(updated);
                   }}/>
-                  <span>RA</span>
+                  <span>{t.rightArmAbbrev}</span>
                 </label>
                 <label className="flex items-center gap-1">
                   <input type="checkbox" checked={sensory.ptLeftArm} onChange={(e)=> {
@@ -1436,7 +1479,7 @@ export default function App() {
                     updated.ptCount = [updated.ptRightArm, updated.ptLeftArm, updated.ptRightLeg, updated.ptLeftLeg].filter(Boolean).length;
                     setSensory(updated);
                   }}/>
-                  <span>LA</span>
+                  <span>{t.leftArmAbbrev}</span>
                 </label>
                 <label className="flex items-center gap-1">
                   <input type="checkbox" checked={sensory.ptRightLeg} onChange={(e)=> {
@@ -1444,7 +1487,7 @@ export default function App() {
                     updated.ptCount = [updated.ptRightArm, updated.ptLeftArm, updated.ptRightLeg, updated.ptLeftLeg].filter(Boolean).length;
                     setSensory(updated);
                   }}/>
-                  <span>RL</span>
+                  <span>{t.rightLegAbbrev}</span>
                 </label>
                 <label className="flex items-center gap-1">
                   <input type="checkbox" checked={sensory.ptLeftLeg} onChange={(e)=> {
@@ -1452,7 +1495,7 @@ export default function App() {
                     updated.ptCount = [updated.ptRightArm, updated.ptLeftArm, updated.ptRightLeg, updated.ptLeftLeg].filter(Boolean).length;
                     setSensory(updated);
                   }}/>
-                  <span>LL</span>
+                  <span>{t.leftLegAbbrev}</span>
                 </label>
               </div>
             </div>
@@ -1478,7 +1521,7 @@ export default function App() {
                     updated.jpCount = [updated.jpRightArm, updated.jpLeftArm, updated.jpRightLeg, updated.jpLeftLeg].filter(Boolean).length;
                     setSensory(updated);
                   }}/>
-                  <span>RA</span>
+                  <span>{t.rightArmAbbrev}</span>
                 </label>
                 <label className="flex items-center gap-1">
                   <input type="checkbox" checked={sensory.jpLeftArm} onChange={(e)=> {
@@ -1486,7 +1529,7 @@ export default function App() {
                     updated.jpCount = [updated.jpRightArm, updated.jpLeftArm, updated.jpRightLeg, updated.jpLeftLeg].filter(Boolean).length;
                     setSensory(updated);
                   }}/>
-                  <span>LA</span>
+                  <span>{t.leftArmAbbrev}</span>
                 </label>
                 <label className="flex items-center gap-1">
                   <input type="checkbox" checked={sensory.jpRightLeg} onChange={(e)=> {
@@ -1494,7 +1537,7 @@ export default function App() {
                     updated.jpCount = [updated.jpRightArm, updated.jpLeftArm, updated.jpRightLeg, updated.jpLeftLeg].filter(Boolean).length;
                     setSensory(updated);
                   }}/>
-                  <span>RL</span>
+                  <span>{t.rightLegAbbrev}</span>
                 </label>
                 <label className="flex items-center gap-1">
                   <input type="checkbox" checked={sensory.jpLeftLeg} onChange={(e)=> {
@@ -1502,7 +1545,7 @@ export default function App() {
                     updated.jpCount = [updated.jpRightArm, updated.jpLeftArm, updated.jpRightLeg, updated.jpLeftLeg].filter(Boolean).length;
                     setSensory(updated);
                   }}/>
-                  <span>LL</span>
+                  <span>{t.leftLegAbbrev}</span>
                 </label>
               </div>
             </div>
@@ -1616,8 +1659,6 @@ export default function App() {
             {/* State Save/Restore Section */}
             <section className="mt-8 pt-6 border-t border-gray-200">
               <div className="bg-gray-50 rounded-lg p-4 space-y-3">
-                <div className="text-xs font-medium text-gray-600">{t.saveRestoreState}</div>
-
                 <div className="space-y-2">
                   <div className="text-xs text-gray-500">{t.formStateString}</div>
                   <div className="flex gap-2">
@@ -1632,7 +1673,7 @@ export default function App() {
                       onClick={copyState}
                       className="px-3 py-1 text-xs bg-white border border-gray-300 rounded hover:bg-gray-100 whitespace-nowrap"
                     >
-                      {copiedState ? t.copied : 'Copy'}
+                      {copiedState ? t.copied : t.copyButton}
                     </button>
                   </div>
                 </div>
@@ -1651,7 +1692,7 @@ export default function App() {
                       onClick={restoreState}
                       className="px-3 py-1 text-xs bg-white border border-gray-300 rounded hover:bg-gray-100 whitespace-nowrap"
                     >
-                      Restore
+                      {t.restoreButton}
                     </button>
                   </div>
                   {restoreError && (
