@@ -14,7 +14,7 @@ export function convertBBForEDSS(bb: number): number {
   if (bb === 6) return 5; // Loss of bladder AND bowel → 5
   if (bb === 5) return 4; // Loss of bladder OR bowel → 4
   if (bb === 4) return 3; // Permanent catheter OR weekly bowel incontinence → 3
-  if (bb === 3) return 2; // Frequent incontinence OR intermittent catheterization → 2
+  if (bb === 3) return 3; // Frequent incontinence OR intermittent catheterization → 3
   if (bb === 2) return 2; // Moderate urge/constipation OR rare incontinence → 2
   if (bb === 1) return 1; // Mild urge or constipation → 1
   return 0;
