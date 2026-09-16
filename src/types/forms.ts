@@ -37,33 +37,13 @@ export type BrainstemForm = {
   otherCranialNerves: 0 | 1 | 2 | 3 | 4;
 };
 
-export type PyramidalForm = {
-  // Upper limb muscle strength scores
-  shoulderAbductionR: number;
-  shoulderAbductionL: number;
-  shoulderExternalRotationR: number;
-  shoulderExternalRotationL: number;
-  elbowFlexionR: number;
-  elbowFlexionL: number;
-  elbowExtensionR: number;
-  elbowExtensionL: number;
-  wristExtensionR: number;
-  wristExtensionL: number;
-  fingerAbductionR: number;
-  fingerAbductionL: number;
-  // Lower limb muscle strength scores
-  hipFlexionR: number;
-  hipFlexionL: number;
-  hipAbductionR: number;
-  hipAbductionL: number;
-  kneeExtensionR: number;
-  kneeExtensionL: number;
-  kneeFlexionR: number;
-  kneeFlexionL: number;
-  ankleDorsiflexionR: number;
-  ankleDorsiflexionL: number;
-  anklePlantarflexionR: number;
-  anklePlantarflexionL: number;
+// Muscle groups as on the Neurostatus scoring sheet; the weakest muscle defines the group's grade
+export const ARM_MUSCLES = ["deltoid", "biceps", "triceps", "wristFingerFlexors", "wristFingerExtensors"] as const;
+export const LEG_MUSCLES = ["hipFlexors", "kneeFlexors", "kneeExtensors", "plantarFlexion", "dorsiflexion"] as const;
+export type MuscleGroup = typeof ARM_MUSCLES[number] | typeof LEG_MUSCLES[number];
+
+// BMRC grade 0–5 per muscle group and side, e.g. deltoidR
+export type PyramidalForm = { [K in `${MuscleGroup}${"R" | "L"}`]: number } & {
   // Upper motor neuron signs
   hyperreflexiaLeft: boolean;
   hyperreflexiaRight: boolean;

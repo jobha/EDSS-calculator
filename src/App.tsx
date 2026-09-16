@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Language, translations } from "./i18n/translations";
 import type { AssistanceId, EyeAcuity, Severity } from "./types/edss";
 import type { VisualForm, BrainstemForm, PyramidalForm, CerebellarForm, SensoryForm, BowelBladderForm, MentalForm, CatheterisationLevel } from "./types/forms";
+import { ARM_MUSCLES, LEG_MUSCLES } from "./types/forms";
 import { clamp } from "./utils/helpers";
 import { formatEyeAcuity } from "./utils/formatting";
 import { suggestV, suggestBS, suggestP, suggestC, suggestS, suggestBB, suggestM } from "./utils/scoring";
@@ -192,32 +193,10 @@ export default function App() {
       : (assistanceLevels.find(a=>a.id===assistance)?.label ?? String(assistance));
 
     // Pyramidal summary
-    const muscles = [
-      { val: pyramidal.shoulderAbductionR, name: t.shoulderAbduction, side: t.rightAbbrev },
-      { val: pyramidal.shoulderAbductionL, name: t.shoulderAbduction, side: t.leftAbbrev },
-      { val: pyramidal.shoulderExternalRotationR, name: t.shoulderExternalRotation, side: t.rightAbbrev },
-      { val: pyramidal.shoulderExternalRotationL, name: t.shoulderExternalRotation, side: t.leftAbbrev },
-      { val: pyramidal.elbowFlexionR, name: t.elbowFlexion, side: t.rightAbbrev },
-      { val: pyramidal.elbowFlexionL, name: t.elbowFlexion, side: t.leftAbbrev },
-      { val: pyramidal.elbowExtensionR, name: t.elbowExtension, side: t.rightAbbrev },
-      { val: pyramidal.elbowExtensionL, name: t.elbowExtension, side: t.leftAbbrev },
-      { val: pyramidal.wristExtensionR, name: t.wristExtension, side: t.rightAbbrev },
-      { val: pyramidal.wristExtensionL, name: t.wristExtension, side: t.leftAbbrev },
-      { val: pyramidal.fingerAbductionR, name: t.fingerAbduction, side: t.rightAbbrev },
-      { val: pyramidal.fingerAbductionL, name: t.fingerAbduction, side: t.leftAbbrev },
-      { val: pyramidal.hipFlexionR, name: t.hipFlexion, side: t.rightAbbrev },
-      { val: pyramidal.hipFlexionL, name: t.hipFlexion, side: t.leftAbbrev },
-      { val: pyramidal.hipAbductionR, name: t.hipAbduction, side: t.rightAbbrev },
-      { val: pyramidal.hipAbductionL, name: t.hipAbduction, side: t.leftAbbrev },
-      { val: pyramidal.kneeExtensionR, name: t.kneeExtension, side: t.rightAbbrev },
-      { val: pyramidal.kneeExtensionL, name: t.kneeExtension, side: t.leftAbbrev },
-      { val: pyramidal.kneeFlexionR, name: t.kneeFlexion, side: t.rightAbbrev },
-      { val: pyramidal.kneeFlexionL, name: t.kneeFlexion, side: t.leftAbbrev },
-      { val: pyramidal.ankleDorsiflexionR, name: t.ankleDorsiflexion, side: t.rightAbbrev },
-      { val: pyramidal.ankleDorsiflexionL, name: t.ankleDorsiflexion, side: t.leftAbbrev },
-      { val: pyramidal.anklePlantarflexionR, name: t.anklePlantarflexion, side: t.rightAbbrev },
-      { val: pyramidal.anklePlantarflexionL, name: t.anklePlantarflexion, side: t.leftAbbrev },
-    ];
+    const muscles = [...ARM_MUSCLES, ...LEG_MUSCLES].flatMap((m) => [
+      { val: pyramidal[`${m}R`], name: t.muscles[m], side: t.rightAbbrev },
+      { val: pyramidal[`${m}L`], name: t.muscles[m], side: t.leftAbbrev },
+    ]);
     const weaknessText = muscles.filter(m => m.val < 5).map(m => `${m.name} ${m.side} ${t.grade} ${m.val}`).join(', ');
 
     // UMN signs
@@ -358,29 +337,15 @@ export default function App() {
     // Pyramidal - list specific weakness findings with new narrative format
     const weaknessFindings: string[] = [];
 
-    // Define all muscles with structured components
-    const allMuscles = [
-      { bodyPart: t.movements.shoulder, movement: t.movements.abduction, r: pyramidal.shoulderAbductionR, l: pyramidal.shoulderAbductionL },
-      { bodyPart: t.movements.shoulder, movement: t.movements.externalRotation, r: pyramidal.shoulderExternalRotationR, l: pyramidal.shoulderExternalRotationL },
-      { bodyPart: t.movements.elbow, movement: t.movements.flexion, r: pyramidal.elbowFlexionR, l: pyramidal.elbowFlexionL },
-      { bodyPart: t.movements.elbow, movement: t.movements.extension, r: pyramidal.elbowExtensionR, l: pyramidal.elbowExtensionL },
-      { bodyPart: t.movements.wrist, movement: t.movements.extension, r: pyramidal.wristExtensionR, l: pyramidal.wristExtensionL },
-      { bodyPart: t.movements.finger, movement: t.movements.abduction, r: pyramidal.fingerAbductionR, l: pyramidal.fingerAbductionL },
-      { bodyPart: t.movements.hip, movement: t.movements.flexion, r: pyramidal.hipFlexionR, l: pyramidal.hipFlexionL },
-      { bodyPart: t.movements.hip, movement: t.movements.abduction, r: pyramidal.hipAbductionR, l: pyramidal.hipAbductionL },
-      { bodyPart: t.movements.knee, movement: t.movements.extension, r: pyramidal.kneeExtensionR, l: pyramidal.kneeExtensionL },
-      { bodyPart: t.movements.knee, movement: t.movements.flexion, r: pyramidal.kneeFlexionR, l: pyramidal.kneeFlexionL },
-      { bodyPart: t.movements.ankle, movement: t.movements.dorsiflexion, r: pyramidal.ankleDorsiflexionR, l: pyramidal.ankleDorsiflexionL },
-      { bodyPart: t.movements.ankle, movement: t.movements.plantarflexion, r: pyramidal.anklePlantarflexionR, l: pyramidal.anklePlantarflexionL },
-    ];
-
-    // Generate weakness findings with new format: "grad X for [movement] [side] [bodyPart]"
-    for (const muscle of allMuscles) {
-      if (muscle.r < 5 && muscle.l < 5 && muscle.r === muscle.l) {
-        weaknessFindings.push(`${t.grade} ${muscle.r} ${t.for} ${muscle.movement} ${t.bilaterally} ${muscle.bodyPart}`);
+    // "grade X for [side] [muscle group]", or "grade X for [muscle group] bilaterally"
+    for (const m of [...ARM_MUSCLES, ...LEG_MUSCLES]) {
+      const r = pyramidal[`${m}R`], l = pyramidal[`${m}L`];
+      const name = t.muscles[m].toLowerCase();
+      if (r < 5 && r === l) {
+        weaknessFindings.push(`${t.grade} ${r} ${t.for} ${name} ${t.bilaterally}`);
       } else {
-        if (muscle.r < 5) weaknessFindings.push(`${t.grade} ${muscle.r} ${t.for} ${muscle.movement} ${t.right} ${muscle.bodyPart}`);
-        if (muscle.l < 5) weaknessFindings.push(`${t.grade} ${muscle.l} ${t.for} ${muscle.movement} ${t.left} ${muscle.bodyPart}`);
+        if (r < 5) weaknessFindings.push(`${t.grade} ${r} ${t.for} ${t.right} ${name}`);
+        if (l < 5) weaknessFindings.push(`${t.grade} ${l} ${t.for} ${t.left} ${name}`);
       }
     }
 
@@ -679,7 +644,6 @@ export default function App() {
 
           {/* P — Registry-style */}
           <FSRowWrapper code="P">
-            {/* Upper limbs table */}
             <div className="space-y-2">
               <div className="text-sm font-medium">{t.upperLimbsMRC}</div>
               <div className="overflow-x-auto">
@@ -692,26 +656,16 @@ export default function App() {
                     </tr>
                   </thead>
                   <tbody>
-                    {[
-                      { keyR: 'shoulderAbductionR', keyL: 'shoulderAbductionL', labelKey: 'shoulderAbduction' as const },
-                      { keyR: 'shoulderExternalRotationR', keyL: 'shoulderExternalRotationL', labelKey: 'shoulderExternalRotation' as const },
-                      { keyR: 'elbowFlexionR', keyL: 'elbowFlexionL', labelKey: 'elbowFlexion' as const },
-                      { keyR: 'elbowExtensionR', keyL: 'elbowExtensionL', labelKey: 'elbowExtension' as const },
-                      { keyR: 'wristExtensionR', keyL: 'wristExtensionL', labelKey: 'wristExtension' as const },
-                      { keyR: 'fingerAbductionR', keyL: 'fingerAbductionL', labelKey: 'fingerAbduction' as const },
-                    ].map((row) => (
-                      <tr key={row.labelKey} className="border-t">
-                        <td className="py-1 pr-2">{t[row.labelKey]}</td>
-                        <td className="py-1 pr-2">
-                          <select className="border rounded-lg p-1" value={pyramidal[row.keyR as keyof typeof pyramidal] as number} onChange={(e)=> setPyramidal(prev=> ({...prev, [row.keyR]: Number(e.target.value)}))}>
-                            {[5,4,3,2,1,0].map(v=> <option key={v} value={v}>{v}</option>)}
-                          </select>
-                        </td>
-                        <td className="py-1 pr-2">
-                          <select className="border rounded-lg p-1" value={pyramidal[row.keyL as keyof typeof pyramidal] as number} onChange={(e)=> setPyramidal(prev=> ({...prev, [row.keyL]: Number(e.target.value)}))}>
-                            {[5,4,3,2,1,0].map(v=> <option key={v} value={v}>{v}</option>)}
-                          </select>
-                        </td>
+                    {ARM_MUSCLES.map((m) => (
+                      <tr key={m} className="border-t">
+                        <td className="py-1 pr-2">{t.muscles[m]}</td>
+                        {(["R", "L"] as const).map((side) => (
+                          <td key={side} className="py-1 pr-2">
+                            <select className="border rounded-lg p-1" value={pyramidal[`${m}${side}`]} onChange={(e)=> setPyramidal(prev=> ({...prev, [`${m}${side}`]: Number(e.target.value)}))}>
+                              {[5,4,3,2,1,0].map(v=> <option key={v} value={v}>{v}</option>)}
+                            </select>
+                          </td>
+                        ))}
                       </tr>
                     ))}
                   </tbody>
@@ -719,7 +673,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* Lower limbs table */}
             <div className="space-y-2">
               <div className="text-sm font-medium">{t.lowerLimbsMRC}</div>
               <div className="overflow-x-auto">
@@ -732,26 +685,16 @@ export default function App() {
                     </tr>
                   </thead>
                   <tbody>
-                    {[
-                      { keyR: 'hipFlexionR', keyL: 'hipFlexionL', labelKey: 'hipFlexion' as const },
-                      { keyR: 'hipAbductionR', keyL: 'hipAbductionL', labelKey: 'hipAbduction' as const },
-                      { keyR: 'kneeExtensionR', keyL: 'kneeExtensionL', labelKey: 'kneeExtension' as const },
-                      { keyR: 'kneeFlexionR', keyL: 'kneeFlexionL', labelKey: 'kneeFlexion' as const },
-                      { keyR: 'ankleDorsiflexionR', keyL: 'ankleDorsiflexionL', labelKey: 'ankleDorsiflexion' as const },
-                      { keyR: 'anklePlantarflexionR', keyL: 'anklePlantarflexionL', labelKey: 'anklePlantarflexion' as const },
-                    ].map((row) => (
-                      <tr key={row.labelKey} className="border-t">
-                        <td className="py-1 pr-2">{t[row.labelKey]}</td>
-                        <td className="py-1 pr-2">
-                          <select className="border rounded-lg p-1" value={pyramidal[row.keyR as keyof typeof pyramidal] as number} onChange={(e)=> setPyramidal(prev=> ({...prev, [row.keyR]: Number(e.target.value)}))}>
-                            {[5,4,3,2,1,0].map(v=> <option key={v} value={v}>{v}</option>)}
-                          </select>
-                        </td>
-                        <td className="py-1 pr-2">
-                          <select className="border rounded-lg p-1" value={pyramidal[row.keyL as keyof typeof pyramidal] as number} onChange={(e)=> setPyramidal(prev=> ({...prev, [row.keyL]: Number(e.target.value)}))}>
-                            {[5,4,3,2,1,0].map(v=> <option key={v} value={v}>{v}</option>)}
-                          </select>
-                        </td>
+                    {LEG_MUSCLES.map((m) => (
+                      <tr key={m} className="border-t">
+                        <td className="py-1 pr-2">{t.muscles[m]}</td>
+                        {(["R", "L"] as const).map((side) => (
+                          <td key={side} className="py-1 pr-2">
+                            <select className="border rounded-lg p-1" value={pyramidal[`${m}${side}`]} onChange={(e)=> setPyramidal(prev=> ({...prev, [`${m}${side}`]: Number(e.target.value)}))}>
+                              {[5,4,3,2,1,0].map(v=> <option key={v} value={v}>{v}</option>)}
+                            </select>
+                          </td>
+                        ))}
                       </tr>
                     ))}
                   </tbody>

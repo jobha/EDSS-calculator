@@ -4,6 +4,7 @@
 // ============================================================================
 
 import type { VisualForm, BrainstemForm, PyramidalForm, CerebellarForm, SensoryForm, BowelBladderForm, MentalForm } from "../types/forms";
+import { ARM_MUSCLES, LEG_MUSCLES } from "../types/forms";
 import type { EyeAcuity, Severity } from "../types/edss";
 
 // Grade implied by the acuity of a single eye (as the worse eye)
@@ -57,10 +58,10 @@ export function suggestBS(fs: BrainstemForm): number {
 
 export function pyramidalLimbs(fs: PyramidalForm) {
   return {
-    rightArm: [fs.shoulderAbductionR, fs.shoulderExternalRotationR, fs.elbowFlexionR, fs.elbowExtensionR, fs.wristExtensionR, fs.fingerAbductionR],
-    leftArm: [fs.shoulderAbductionL, fs.shoulderExternalRotationL, fs.elbowFlexionL, fs.elbowExtensionL, fs.wristExtensionL, fs.fingerAbductionL],
-    rightLeg: [fs.hipFlexionR, fs.hipAbductionR, fs.kneeExtensionR, fs.kneeFlexionR, fs.ankleDorsiflexionR, fs.anklePlantarflexionR],
-    leftLeg: [fs.hipFlexionL, fs.hipAbductionL, fs.kneeExtensionL, fs.kneeFlexionL, fs.ankleDorsiflexionL, fs.anklePlantarflexionL],
+    rightArm: ARM_MUSCLES.map((m) => fs[`${m}R`]),
+    leftArm: ARM_MUSCLES.map((m) => fs[`${m}L`]),
+    rightLeg: LEG_MUSCLES.map((m) => fs[`${m}R`]),
+    leftLeg: LEG_MUSCLES.map((m) => fs[`${m}L`]),
   };
 }
 
