@@ -4,7 +4,8 @@
 
 import LZString from "lz-string";
 import type { AssistanceId } from "../types/edss";
-import type { VisualForm, BrainstemForm, PyramidalForm, CerebellarForm, SensoryForm, BowelBladderForm, MentalForm } from "../types/forms";
+import type { VisualForm, BrainstemForm, PyramidalForm, CerebellarForm, SensoryForm, BowelBladderForm, MentalForm, MuscleGroup } from "../types/forms";
+import { ARM_MUSCLES, LEG_MUSCLES } from "../types/forms";
 
 export type FormState = {
   visual: VisualForm;
@@ -22,7 +23,7 @@ export type FormState = {
 export const DEFAULT_STATE: FormState = {
   visual: { leftEyeAcuity: "1.0", rightEyeAcuity: "1.0", visualFieldDeficit: "none", scotoma: 0, discPallor: false },
   brainstem: { eyeMotilityLevel: 0, nystagmus: "none", ino: false, facialSensLeft: 0, facialSensRight: 0, facialSymLeft: 0, facialSymRight: 0, hearingLeft: 0, hearingRight: 0, dysarthriaLevel: 0, dysphagiaLevel: 0, otherCranialNerves: 0 },
-  pyramidal: { shoulderAbductionR:5, shoulderAbductionL:5, shoulderExternalRotationR:5, shoulderExternalRotationL:5, elbowFlexionR:5, elbowFlexionL:5, elbowExtensionR:5, elbowExtensionL:5, wristExtensionR:5, wristExtensionL:5, fingerAbductionR:5, fingerAbductionL:5, hipFlexionR:5, hipFlexionL:5, hipAbductionR:5, hipAbductionL:5, kneeExtensionR:5, kneeExtensionL:5, kneeFlexionR:5, kneeFlexionL:5, ankleDorsiflexionR:5, ankleDorsiflexionL:5, anklePlantarflexionR:5, anklePlantarflexionL:5, hyperreflexiaLeft:false, hyperreflexiaRight:false, babinskiLeft:false, babinskiRight:false, clonusLeft:false, clonusRight:false, spasticGait:false, fatigability:false },
+  pyramidal: { ...Object.fromEntries([...ARM_MUSCLES, ...LEG_MUSCLES].flatMap((m) => [[`${m}R`, 5], [`${m}L`, 5]])) as { [K in `${MuscleGroup}${"R" | "L"}`]: number }, hyperreflexiaLeft:false, hyperreflexiaRight:false, babinskiLeft:false, babinskiRight:false, clonusLeft:false, clonusRight:false, spasticGait:false, fatigability:false },
   cerebellar: { headTremor: 0, truncalAtaxia: 0, limbAtaxiaRightArm: 0, limbAtaxiaLeftArm: 0, limbAtaxiaRightLeg: 0, limbAtaxiaLeftLeg: 0, tandemWalking: 0, gaitAtaxia: 0, romberg: 0, otherCerebellar: 0, inabilityCoordinatedMovements: false },
   sensory: { vibSeverity: "normal", vibCount: 0, vibRightArm: false, vibLeftArm: false, vibRightLeg: false, vibLeftLeg: false, ptSeverity: "normal", ptCount: 0, ptRightArm: false, ptLeftArm: false, ptRightLeg: false, ptLeftLeg: false, jpSeverity: "normal", jpCount: 0, jpRightArm: false, jpLeftArm: false, jpRightLeg: false, jpLeftLeg: false },
   bb: { urinaryHesitancy: 0, urinaryUrgency: 0, catheterisation: "none", bowelDysfunction: 0 },
@@ -32,7 +33,7 @@ export const DEFAULT_STATE: FormState = {
   ambulationRestricted: false,
 };
 
-const STATE_VERSION = 2;
+const STATE_VERSION = 3;
 
 // Remove default values from object (recursive)
 function removeDefaults(obj: any, defaults: any): any {
@@ -92,24 +93,59 @@ export function decodeState(input: string): FormState | null {
 }
 
 // Converts a saved (defaults-stripped) state of an older version to the current full state.
+export function migrateState(version: number, saved: any): FormState {
+  let state = saved ?? {};
+  if (version < 2) state = migrateV1(state);
+  if (version < 3) state = migrateV2(state);
+  return mergeWithDefaults(state, DEFAULT_STATE);
+}
+
+// Version 2 used 12 muscle groups per side; version 3 uses the 10 groups of the scoring sheet.
+// Each new group takes the weakest of the old movements mapped to it.
+const V2_MUSCLES: Record<MuscleGroup, string[]> = {
+  deltoid: ["shoulderAbduction", "shoulderExternalRotation"],
+  biceps: ["elbowFlexion"],
+  triceps: ["elbowExtension"],
+  wristFingerFlexors: ["fingerAbduction"],
+  wristFingerExtensors: ["wristExtension"],
+  hipFlexors: ["hipFlexion", "hipAbduction"],
+  kneeFlexors: ["kneeFlexion"],
+  kneeExtensors: ["kneeExtension"],
+  plantarFlexion: ["anklePlantarflexion"],
+  dorsiflexion: ["ankleDorsiflexion"],
+};
+
+function migrateV2(saved: any): any {
+  const oldP = saved.pyramidal ?? {};
+  const pyramidal: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(oldP)) {
+    if (typeof value === "boolean") pyramidal[key] = value;
+  }
+  for (const [group, oldNames] of Object.entries(V2_MUSCLES)) {
+    for (const side of ["R", "L"]) {
+      const grades = oldNames.map((name) => oldP[name + side]).filter((v): v is number => typeof v === "number");
+      if (grades.length > 0) pyramidal[group + side] = Math.min(...grades);
+    }
+  }
+  return { ...saved, pyramidal };
+}
+
 // Version 1 used checklists for cerebellar and bowel/bladder findings and a 0–4 scale
 // (without "signs only") for dysarthria and dysphagia.
-export function migrateState(version: number, saved: any): FormState {
-  if (version >= STATE_VERSION) return mergeWithDefaults(saved, DEFAULT_STATE);
-
-  const { cerebellar: oldC = {}, bb: oldBB = {}, brainstem: oldBS = {}, ...rest } = saved ?? {};
-  const state: FormState = mergeWithDefaults(rest, DEFAULT_STATE);
+function migrateV1(saved: any): any {
+  const { cerebellar: oldC = {}, bb: oldBB = {}, brainstem: oldBS = {}, ...rest } = saved;
+  const state = { ...rest };
 
   // Sensory: vibration and position sense have a single "marked" (complete loss) level
-  if (state.sensory.vibSeverity === "absent") state.sensory.vibSeverity = "marked";
-  if (state.sensory.jpSeverity === "absent") state.sensory.jpSeverity = "marked";
+  if (state.sensory) {
+    state.sensory = { ...state.sensory };
+    if (state.sensory.vibSeverity === "absent") state.sensory.vibSeverity = "marked";
+    if (state.sensory.jpSeverity === "absent") state.sensory.jpSeverity = "marked";
+  }
 
   // Brainstem: v1 levels 1–4 correspond to Neurostatus 2–5
   const shift = (level: unknown) => (typeof level === "number" && level > 0 ? Math.min(level + 1, 5) : 0);
-  state.brainstem = mergeWithDefaults(
-    { ...oldBS, dysarthriaLevel: shift(oldBS.dysarthriaLevel), dysphagiaLevel: shift(oldBS.dysphagiaLevel) },
-    DEFAULT_STATE.brainstem,
-  );
+  state.brainstem = { ...oldBS, dysarthriaLevel: shift(oldBS.dysarthriaLevel), dysphagiaLevel: shift(oldBS.dysphagiaLevel) };
 
   // Cerebellar
   const c = { ...DEFAULT_STATE.cerebellar };
