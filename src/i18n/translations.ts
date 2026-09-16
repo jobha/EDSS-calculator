@@ -305,6 +305,25 @@ export const translations = {
     pasteHere: "Paste saved state here...",
     copyButton: "Copy",
     restoreButton: "Restore",
+    // Manual FS override
+    fsAuto: "Auto ({suggested})",
+    fsManual: "Manual – suggested {suggested}",
+    fsManualShort: "manual; suggested {suggested}",
+    fsUseSuggested: "Use suggested",
+    fsManualNote: "Manually overridden FS score",
+    ambulationShort: "Amb",
+    // Previous visit
+    previousVisit: "Previous visit",
+    compareTitle: "Compare with previous visit",
+    comparePaste: "Paste the saved form state from the previous visit...",
+    compareClear: "Clear",
+    previous: "Previous",
+    current: "Current",
+    change: "Change",
+    compareWorsening: "EDSS increase meets the worsening threshold (≥{threshold} from EDSS {previous}). Confirm at a later visit (usually ≥3–6 months) before recording confirmed disability worsening.",
+    compareImprovement: "EDSS decrease meets the improvement threshold (≥{threshold} from EDSS {previous}). Confirm at a later visit before recording confirmed improvement.",
+    compareStable: "EDSS change is below the threshold (±{threshold} from EDSS {previous}).",
+    compareRescoredNote: "The previous visit is rescored from its saved findings with the current rules, so its EDSS can differ from what was recorded at the time.",
   },
   no: {
     title: "EDSS-Kalkulator",
@@ -606,6 +625,25 @@ export const translations = {
     pasteHere: "Lim inn lagret tilstand her...",
     copyButton: "Kopier",
     restoreButton: "Gjenopprett",
+    // Manual FS override
+    fsAuto: "Auto ({suggested})",
+    fsManual: "Manuell – foreslått {suggested}",
+    fsManualShort: "manuell; foreslått {suggested}",
+    fsUseSuggested: "Bruk foreslått",
+    fsManualNote: "Manuelt overstyrt FS-skår",
+    ambulationShort: "Gange",
+    // Previous visit
+    previousVisit: "Forrige konsultasjon",
+    compareTitle: "Sammenlign med forrige konsultasjon",
+    comparePaste: "Lim inn lagret skjematilstand fra forrige konsultasjon...",
+    compareClear: "Tøm",
+    previous: "Forrige",
+    current: "Nå",
+    change: "Endring",
+    compareWorsening: "EDSS-økningen når terskelen for forverring (≥{threshold} fra EDSS {previous}). Bekreft ved senere konsultasjon (vanligvis ≥3–6 måneder) før bekreftet funksjonsforverring registreres.",
+    compareImprovement: "EDSS-reduksjonen når terskelen for bedring (≥{threshold} fra EDSS {previous}). Bekreft ved senere konsultasjon før bekreftet bedring registreres.",
+    compareStable: "EDSS-endringen er under terskelen (±{threshold} fra EDSS {previous}).",
+    compareRescoredNote: "Forrige konsultasjon skåres på nytt fra lagrede funn med gjeldende regler, så EDSS kan avvike fra det som ble registrert den gang.",
   }
 };
 
