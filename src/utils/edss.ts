@@ -1,22 +1,20 @@
 // ============================================================================
 // EDSS CALCULATION
+// Neurostatus scoring table (version 04/10.3) and definitions (version 04/10.2)
 // ============================================================================
 
 import type { AssistanceId } from "../types/edss";
-import { ceilToHalf } from "./helpers";
 
 export function convertVisualForEDSS(v: number): number {
   if (v >= 6) return 4; if (v === 5 || v === 4) return 3; if (v === 3 || v === 2) return 2; if (v === 1) return 1; return 0;
 }
 
 export function convertBBForEDSS(bb: number): number {
-  // Corrected FS scores
-  if (bb === 6) return 5; // Loss of bladder AND bowel → 5
-  if (bb === 5) return 4; // Loss of bladder OR bowel → 4
-  if (bb === 4) return 3; // Permanent catheter OR weekly bowel incontinence → 3
-  if (bb === 3) return 3; // Frequent incontinence OR intermittent catheterization → 3
-  if (bb === 2) return 2; // Moderate urge/constipation OR rare incontinence → 2
-  if (bb === 1) return 1; // Mild urge or constipation → 1
+  if (bb >= 6) return 5;
+  if (bb === 5) return 4;
+  if (bb === 4 || bb === 3) return 3;
+  if (bb === 2) return 2;
+  if (bb === 1) return 1;
   return 0;
 }
 
@@ -27,216 +25,135 @@ export function correctedFS(fs: Record<string, number>): Record<string, number> 
   return out;
 }
 
-export function computeLowEDSS_Neurostatus(fs: Record<string, number>) {
-  const v = Object.values(fs);
-  const cnt = (n: number) => v.filter((x) => x === n).length;
-  const max = Math.max(...v);
+// ----------------------------------------------------------------------------
+// EDSS step from (converted) FS scores
+// ----------------------------------------------------------------------------
 
-  // Count occurrences at each FS level
-  const cnt1 = cnt(1);
-  const cnt2 = cnt(2);
-  const cnt3 = cnt(3);
-  const cnt4 = cnt(4);
-  const cnt5 = cnt(5);
-  const cnt6 = cnt(6);
+export type FSColumn = "0" | "1" | "2" | "3" | "4" | "5";
 
-  // Row 1: All FS = 0 → EDSS 0
-  if (v.every((x) => x === 0)) {
-    return { edss: 0.0, rationale: "All FS = 0" };
+export type FSStepRow = {
+  edss: number;
+  // Required number of FS at each grade; columns not listed have no impact
+  cells: Partial<Record<FSColumn, string>>;
+  // false: combination not listed in the scoring table, derived from the EDSS step definitions
+  // ("combination of lesser grades exceeding limits of previous steps")
+  inTable: boolean;
+};
+
+export const FS_STEP_ROWS: FSStepRow[] = [
+  { edss: 0.0, cells: { "0": "7" }, inTable: true },            // 0
+  { edss: 1.0, cells: { "1": "1" }, inTable: true },            // 1
+  { edss: 1.5, cells: { "1": "2–7" }, inTable: true },          // 2
+  { edss: 2.0, cells: { "2": "1" }, inTable: true },            // 3
+  { edss: 2.5, cells: { "2": "2" }, inTable: true },            // 4
+  { edss: 3.0, cells: { "2": "3–4" }, inTable: true },          // 5
+  { edss: 3.0, cells: { "2": "0", "3": "1" }, inTable: true },  // 6
+  { edss: 3.5, cells: { "2": "5" }, inTable: true },            // 7
+  { edss: 3.5, cells: { "2": "1–2", "3": "1" }, inTable: true },// 8
+  { edss: 3.5, cells: { "2": "0", "3": "2" }, inTable: true },  // 9
+  { edss: 4.0, cells: { "2": "6–7" }, inTable: true },          // 10
+  { edss: 4.0, cells: { "3": "2–4" }, inTable: true },          // 11
+  { edss: 4.0, cells: { "2": "0", "3": "0", "4": "1" }, inTable: true }, // 12
+  { edss: 4.0, cells: { "2": "3–6", "3": "1" }, inTable: false },// 13
+  { edss: 4.5, cells: { "3": "5" }, inTable: true },            // 14
+  { edss: 4.5, cells: { "3": "1–2", "4": "1" }, inTable: true },// 15
+  { edss: 4.5, cells: { "2": "1–6", "3": "0", "4": "1" }, inTable: false }, // 16
+  { edss: 5.0, cells: { "3": "6–7" }, inTable: true },          // 17
+  { edss: 5.0, cells: { "4": "2–7" }, inTable: true },          // 18
+  { edss: 5.0, cells: { "3": "3–6", "4": "1" }, inTable: false },// 19
+  { edss: 5.0, cells: { "5": "1–7" }, inTable: true },          // 20
+];
+
+export function computeFSStep(correctedValues: Record<string, number>): { edss: number; row: number } {
+  const v = Object.values(correctedValues);
+  const n = (grade: number) => v.filter((x) => x === grade).length;
+  const n2 = n(2), n3 = n(3), n4 = n(4);
+  const n5plus = v.filter((x) => x >= 5).length;
+
+  let row: number;
+  if (n5plus >= 1) row = 20;
+  else if (n4 >= 2) row = 18;
+  else if (n4 === 1) {
+    if (n3 === 0) row = n2 === 0 ? 12 : 16;
+    else row = n3 <= 2 ? 15 : 19;
   }
+  else if (n3 >= 6) row = 17;
+  else if (n3 === 5) row = 14;
+  else if (n3 >= 3) row = 11;
+  else if (n3 === 2) row = n2 === 0 ? 9 : 11;
+  else if (n3 === 1) row = n2 === 0 ? 6 : n2 <= 2 ? 8 : 13;
+  else if (n2 >= 6) row = 10;
+  else if (n2 === 5) row = 7;
+  else if (n2 >= 3) row = 5;
+  else if (n2 === 2) row = 4;
+  else if (n2 === 1) row = 3;
+  else if (n(1) >= 2) row = 2;
+  else if (n(1) === 1) row = 1;
+  else row = 0;
 
-  // Row 2: FS1=1 → EDSS 1
-  if (cnt1 === 1 && max === 1) {
-    return { edss: 1.0, rationale: "Single FS = 1" };
-  }
-
-  // Row 3: FS1>1 → EDSS 1.5
-  if (cnt1 > 1 && max === 1) {
-    return { edss: 1.5, rationale: ">1 FS = 1" };
-  }
-
-  // Row 4: FS2=1 → EDSS 2
-  if (cnt2 === 1 && max === 2) {
-    return { edss: 2.0, rationale: "Single FS = 2" };
-  }
-
-  // Row 5: FS2=2 → EDSS 2.5
-  if (cnt2 === 2 && max === 2) {
-    return { edss: 2.5, rationale: "Two FS = 2" };
-  }
-
-  // Row 6: FS2=0, FS3=1 → EDSS 3
-  if (cnt2 === 0 && cnt3 === 1 && max === 3) {
-    return { edss: 3.0, rationale: "Single FS = 3, no FS = 2" };
-  }
-
-  // Row 7: FS2=3-4 → EDSS 3
-  if (cnt2 >= 3 && cnt2 <= 4 && max === 2) {
-    return { edss: 3.0, rationale: "3-4 FS = 2" };
-  }
-
-  // Row 8: FS2=1-2, FS3=1 → EDSS 3.5 (must check before row 15)
-  if (cnt2 >= 1 && cnt2 <= 2 && cnt3 === 1 && max === 3) {
-    return { edss: 3.5, rationale: "1-2 FS = 2, single FS = 3" };
-  }
-
-  // Row 9: FS2=0, FS3=2 → EDSS 3.5
-  if (cnt2 === 0 && cnt3 === 2 && max === 3) {
-    return { edss: 3.5, rationale: "Two FS = 3, no FS = 2" };
-  }
-
-  // Row 10: FS2=5 → EDSS 3.5
-  if (cnt2 === 5 && max === 2) {
-    return { edss: 3.5, rationale: "Five FS = 2" };
-  }
-
-  // Row 11: FS2=0, FS3=0, FS4=1 → EDSS 4
-  if (cnt2 === 0 && cnt3 === 0 && cnt4 === 1 && max === 4) {
-    return { edss: 4.0, rationale: "Single FS = 4, no FS = 2 or 3" };
-  }
-
-  // Row 12: FS2=0, FS3=3-4 → EDSS 4
-  if (cnt2 === 0 && cnt3 >= 3 && cnt3 <= 4 && max === 3) {
-    return { edss: 4.0, rationale: "0 FS = 2, 3-4 FS = 3" };
-  }
-
-  // Row 13: FS2>=3, FS3=1 → EDSS 4
-  if (cnt2 >= 3 && cnt3 === 1 && max === 3) {
-    return { edss: 4.0, rationale: ">=3 FS = 2, single FS = 3" };
-  }
-
-  // Row 14: FS2>0, FS3=2-4 → EDSS 4
-  if (cnt2 > 0 && cnt3 >= 2 && cnt3 <= 4 && max === 3) {
-    return { edss: 4.0, rationale: ">0 FS = 2, 2-4 FS = 3" };
-  }
-
-  // Row 15: FS2>5 → EDSS 4
-  if (cnt2 > 5 && max === 2) {
-    return { edss: 4.0, rationale: ">5 FS = 2" };
-  }
-
-  // Row 16: FS3=5 → EDSS 4.5
-  if (cnt3 === 5 && max === 3) {
-    return { edss: 4.5, rationale: "Five FS = 3" };
-  }
-
-  // Row 17: FS3=1-2, FS4=1 → EDSS 4.5
-  if (cnt3 >= 1 && cnt3 <= 2 && cnt4 === 1 && max === 4) {
-    return { edss: 4.5, rationale: "1-2 FS = 3, single FS = 4" };
-  }
-
-  // Row 18: FS2>=1, FS4=1 → EDSS 4.5
-  if (cnt2 >= 1 && cnt4 === 1 && max === 4) {
-    return { edss: 4.5, rationale: "FS = 2 present, single FS = 4" };
-  }
-
-  // Row 19: FS5>=1 → EDSS 5
-  if (cnt5 >= 1) {
-    return { edss: 5.0, rationale: "FS = 5 present" };
-  }
-
-  // Row 20: FS4>=2 → EDSS 5
-  if (cnt4 >= 2) {
-    return { edss: 5.0, rationale: ">=2 FS = 4" };
-  }
-
-  // Row 21: FS3>=6 → EDSS 5
-  if (cnt3 >= 6) {
-    return { edss: 5.0, rationale: ">=6 FS = 3" };
-  }
-
-  // If max FS is 6, always EDSS 5.0
-  if (cnt6 >= 1) {
-    return { edss: 5.0, rationale: "FS = 6 present" };
-  }
-
-  // Fallback for any unmatched patterns
-  if (max >= 4) {
-    return { edss: 5.0, rationale: "FS >= 4 present" };
-  }
-
-  if (max === 3) {
-    return { edss: 4.5, rationale: "FS = 3 pattern" };
-  }
-
-  return { edss: 4.0, rationale: "Default pattern" };
+  return { edss: FS_STEP_ROWS[row].edss, row };
 }
 
-export function computeAmbulationEDSS(assistance: AssistanceId, distanceNoAid: number | null) {
-  // Handle walking with aids
+// ----------------------------------------------------------------------------
+// Ambulation
+// ----------------------------------------------------------------------------
+
+export type AmbulationResult = {
+  // Neurostatus ambulation score (0–15); 10 is also used for "bilateral aid, < 5 m"
+  score: number;
+  // Minimum EDSS step implied by ambulation
+  minEDSS: number;
+  // true when the EDSS step is defined by ambulation alone (EDSS ≥ 5.5)
+  exclusive: boolean;
+};
+
+export function computeAmbulation(assistance: AssistanceId, distanceNoAid: number | null, restricted: boolean): AmbulationResult | null {
   switch (assistance) {
-    case "uni_50_plus":
-      // 6.0: ≥50m with unilateral aid OR <100m without aid
-      return { edss: 6.0, rationale: "Walks ≥50 m with unilateral aid" } as const;
-    case "uni_under_50":
-      // 6.5: <50m with unilateral aid
-      return { edss: 6.5, rationale: "Walks <50 m with unilateral aid" } as const;
-    case "bi_120_plus":
-      // 6.0: ≥120m with bilateral aid
-      return { edss: 6.0, rationale: "Walks ≥120 m with bilateral aid" } as const;
-    case "bi_5_to_120":
-      // 6.5: ≥5m but <120m with bilateral aid
-      return { edss: 6.5, rationale: "Walks ≥5 m but <120 m with bilateral aid" } as const;
-    case "bi_under_5":
-      // 7.0: <5m with bilateral aid
-      return { edss: 7.0, rationale: "Walks <5 m with bilateral aid" } as const;
-    case "wheel_self":
-      // 7.0: Self-propels wheelchair, transfers independently
-      return { edss: 7.0, rationale: "Wheelchair; self-propels and transfers independently" } as const;
-    case "wheel_some_help":
-      // 7.5: Needs some help with transfers
-      return { edss: 7.5, rationale: "Wheelchair; needs help with transfers, self-propels" } as const;
-    case "wheel_dependent":
-      // 8.0: Completely dependent for wheelchair
-      return { edss: 8.0, rationale: "Wheelchair; completely dependent" } as const;
-    case "bed_chair_arms_ok":
-      return { edss: 8.0, rationale: "Bed/chair; arms effective" } as const;
-    case "bed_chair_limited_arms":
-      return { edss: 8.5, rationale: "Bed-bound; limited arm use" } as const;
-    case "helpless":
-      return { edss: 9.0, rationale: "Helpless bedridden" } as const;
-    case "total_care":
-      return { edss: 9.5, rationale: "Totally helpless; total care" } as const;
+    case "uni_50_plus": return { score: 6, minEDSS: 6.0, exclusive: true };
+    case "bi_120_plus": return { score: 7, minEDSS: 6.0, exclusive: true };
+    case "uni_under_50": return { score: 8, minEDSS: 6.5, exclusive: true };
+    case "bi_5_to_120": return { score: 9, minEDSS: 6.5, exclusive: true };
+    case "bi_under_5": return { score: 10, minEDSS: 7.0, exclusive: true };
+    case "wheel_self": return { score: 10, minEDSS: 7.0, exclusive: true };
+    case "wheel_some_help": return { score: 11, minEDSS: 7.5, exclusive: true };
+    case "wheel_dependent": return { score: 12, minEDSS: 8.0, exclusive: true };
+    case "bed_chair_arms_ok": return { score: 12, minEDSS: 8.0, exclusive: true };
+    case "bed_chair_limited_arms": return { score: 13, minEDSS: 8.5, exclusive: true };
+    case "helpless": return { score: 14, minEDSS: 9.0, exclusive: true };
+    case "total_care": return { score: 15, minEDSS: 9.5, exclusive: true };
   }
 
-  // Handle walking without aids
-  if (assistance === "none" && distanceNoAid != null) {
-    // No upper limit mentioned - unlimited walking = can be 0-4.5 based on FS
-    if (distanceNoAid >= 500) return null; // Will be determined by FS score
-    if (distanceNoAid >= 300) return { edss: 4.5, rationale: "Walks 300-499 m unaided" } as const;
-    if (distanceNoAid >= 200) return { edss: 5.0, rationale: "Walks 200-299 m unaided" } as const;
-    if (distanceNoAid >= 100) return { edss: 5.5, rationale: "Walks 100-199 m unaided" } as const;
-    // <100m without aid = 6.0
-    return { edss: 6.0, rationale: "Walks <100 m unaided" } as const;
+  if (distanceNoAid == null || distanceNoAid >= 500) {
+    // 0 = unrestricted; 1 = fully ambulatory (≥ 500 m) but not unrestricted
+    return restricted ? { score: 1, minEDSS: 2.0, exclusive: false } : null;
   }
-  return null;
+  if (distanceNoAid >= 300) return { score: 2, minEDSS: 4.5, exclusive: false };
+  if (distanceNoAid >= 200) return { score: 3, minEDSS: 5.0, exclusive: false };
+  if (distanceNoAid >= 100) return { score: 4, minEDSS: 5.5, exclusive: true };
+  return { score: 5, minEDSS: 6.0, exclusive: true };
 }
 
-export function computeEDSSFromInputs(fs: Record<string, number>, assistance: AssistanceId, distanceNoAid: number | null) {
-  // Use corrected FS scores for EDSS calculation
-  const correctedFSValues = correctedFS(fs);
-  const low = computeLowEDSS_Neurostatus(correctedFSValues);
+// ----------------------------------------------------------------------------
+// Final EDSS
+// ----------------------------------------------------------------------------
 
-  if (assistance !== "none") {
-    const ambAid = computeAmbulationEDSS(assistance, distanceNoAid);
-    const base = ambAid ?? (low ?? { edss: 4.0, rationale: "Default 4.0" } as const);
-    const maxFS = Math.max(...Object.values(correctedFSValues));
-    const finalEDSS = Math.max(base.edss, ceilToHalf(maxFS));
-    const rationale = finalEDSS > base.edss ? base.rationale + ` (raised to ${finalEDSS} due to max FS=${maxFS})` : base.rationale;
-    return { edss: finalEDSS, rationale } as const;
-  }
-  if (distanceNoAid == null) {
-    const base = low ?? ({ edss: 4.0, rationale: "Default 4.0" } as const);
-    const maxFS = Math.max(...Object.values(correctedFSValues));
-    const finalEDSS = Math.max(base.edss, ceilToHalf(maxFS));
-    const rationale = finalEDSS > base.edss ? base.rationale + ` (raised to ${finalEDSS} due to max FS=${maxFS})` : base.rationale;
-    return { edss: finalEDSS, rationale } as const;
-  }
-  let base: { edss: number; rationale: string } | null = null;
-  if (distanceNoAid >= 500) base = low ?? { edss: 4.0, rationale: "Walks >=500 m unaided" } as const;
-  else base = computeAmbulationEDSS(assistance, distanceNoAid) ?? (low ?? { edss: 4.5, rationale: "Distance <500 m" } as const);
-  const maxFS = Math.max(...Object.values(correctedFSValues));
-  const finalEDSS = Math.max(base.edss, ceilToHalf(maxFS));
-  const rationale = finalEDSS > base.edss ? base.rationale + ` (raised to ${finalEDSS} due to max FS=${maxFS})` : base.rationale;
-  return { edss: finalEDSS, rationale } as const;
+export type EDSSResult = {
+  edss: number;
+  fsStep: { edss: number; row: number };
+  ambulation: AmbulationResult | null;
+  // Which component determined the final step
+  determinedBy: "fs" | "ambulation" | "both";
+};
+
+export function computeEDSSFromInputs(fs: Record<string, number>, assistance: AssistanceId, distanceNoAid: number | null, restricted = false): EDSSResult {
+  const fsStep = computeFSStep(correctedFS(fs));
+  const ambulation = computeAmbulation(assistance, distanceNoAid, restricted);
+
+  if (!ambulation) return { edss: fsStep.edss, fsStep, ambulation, determinedBy: "fs" };
+
+  // EDSS steps ≥ 5.5 are exclusively defined by ambulation
+  const edss = ambulation.exclusive ? ambulation.minEDSS : Math.max(fsStep.edss, ambulation.minEDSS);
+  const determinedBy = ambulation.exclusive || ambulation.minEDSS > fsStep.edss ? "ambulation"
+    : ambulation.minEDSS === fsStep.edss ? "both" : "fs";
+  return { edss, fsStep, ambulation, determinedBy };
 }

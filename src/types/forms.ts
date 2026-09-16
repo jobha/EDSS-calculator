@@ -1,5 +1,6 @@
 // ============================================================================
 // FORM TYPE DEFINITIONS
+// Subscores follow the Neurostatus definitions (version 04/10.2)
 // ============================================================================
 
 import type { EyeAcuity, Severity } from './edss';
@@ -7,27 +8,33 @@ import type { EyeAcuity, Severity } from './edss';
 export type VisualForm = {
   leftEyeAcuity: EyeAcuity;
   rightEyeAcuity: EyeAcuity;
+  // 0 none, 1 signs only, 2 moderate (aware, incomplete hemianopia), 3 marked (complete homonymous hemianopia)
   visualFieldDeficit: "none" | "mild" | "moderate" | "marked";
+  // 0 none, 1 small (formal testing only), 2 large (spontaneously reported)
+  scotoma: 0 | 1 | 2;
+  discPallor: boolean;
 };
 
 export type BrainstemForm = {
-  // Eye motility
+  // Extraocular movements (EOM) impairment 0–4
   eyeMotilityLevel: 0 | 1 | 2 | 3 | 4;
-  // Nystagmus
+  // Nystagmus 0–3
   nystagmus: "none" | "mild" | "clear" | "spontaneous";
   ino: boolean;
-  // Facial sensibility (separate levels for each side)
+  // Trigeminal damage 0–4 (per side)
   facialSensLeft: 0 | 1 | 2 | 3 | 4;
   facialSensRight: 0 | 1 | 2 | 3 | 4;
-  // Facial symmetry (separate levels for each side)
+  // Facial weakness 0–4 (per side)
   facialSymLeft: 0 | 1 | 2 | 3 | 4;
   facialSymRight: 0 | 1 | 2 | 3 | 4;
-  // Hearing (separate levels for each side)
+  // Hearing loss 0–4 (per side)
   hearingLeft: 0 | 1 | 2 | 3 | 4;
   hearingRight: 0 | 1 | 2 | 3 | 4;
-  // Speech/swallowing
-  dysarthriaLevel: 0 | 1 | 2 | 3 | 4;
-  dysphagiaLevel: 0 | 1 | 2 | 3 | 4;
+  // Dysarthria 0–5, dysphagia 0–5
+  dysarthriaLevel: 0 | 1 | 2 | 3 | 4 | 5;
+  dysphagiaLevel: 0 | 1 | 2 | 3 | 4 | 5;
+  // Other cranial nerve functions 0–4
+  otherCranialNerves: 0 | 1 | 2 | 3 | 4;
 };
 
 export type PyramidalForm = {
@@ -69,22 +76,18 @@ export type PyramidalForm = {
 };
 
 export type CerebellarForm = {
-  // Finger-nose test
-  fingerNoseRightArm: boolean;
-  fingerNoseLeftArm: boolean;
-  // Heel-knee test
-  heelKneeRightLeg: boolean;
-  heelKneeLeftLeg: boolean;
-  // Other cerebellar signs
-  rombergFallTendency: boolean;
-  lineWalkDifficulty: boolean;
-  limbAtaxiaAffectsFunction: boolean;
-  gaitAtaxia: boolean;
-  truncalAtaxiaEO: boolean;
-  needsAssistanceDueAtaxia: boolean;
-  ataxiaThreeOrFourLimbs: boolean;
+  headTremor: 0 | 1 | 2 | 3;
+  truncalAtaxia: 0 | 1 | 2 | 3 | 4;
+  // Limb ataxia (tremor/dysmetria and rapid alternating movements) 0–4 per limb
+  limbAtaxiaRightArm: 0 | 1 | 2 | 3 | 4;
+  limbAtaxiaLeftArm: 0 | 1 | 2 | 3 | 4;
+  limbAtaxiaRightLeg: 0 | 1 | 2 | 3 | 4;
+  limbAtaxiaLeftLeg: 0 | 1 | 2 | 3 | 4;
+  tandemWalking: 0 | 1 | 2;
+  gaitAtaxia: 0 | 1 | 2 | 3 | 4;
+  romberg: 0 | 1 | 2 | 3;
+  otherCerebellar: 0 | 1 | 2 | 3;
   inabilityCoordinatedMovements: boolean;
-  mildCerebellarSignsNoFunction: boolean;
 };
 
 export type SensoryForm = {
@@ -108,29 +111,21 @@ export type SensoryForm = {
   jpLeftLeg: boolean;
 };
 
+export type CatheterisationLevel = "none" | "intermittent" | "almostConstant" | "indwelling";
+
 export type BowelBladderForm = {
-  // Bladder symptoms
-  mildUrge: boolean;
-  moderateUrge: boolean;
-  rareIncontinence: boolean;
-  frequentIncontinence: boolean;
-  intermittentCatheterization: boolean;
-  permanentCatheter: boolean;
-  lossBladderFunction: boolean;
-  // Bowel symptoms
-  mildConstipation: boolean;
-  moderateConstipation: boolean;
-  severeConstipation: boolean;
-  needsHelpForBowelMovement: boolean;
-  bowelIncontinenceWeekly: boolean;
-  lossBowelFunction: boolean;
+  urinaryHesitancy: 0 | 1 | 2 | 3 | 4;
+  urinaryUrgency: 0 | 1 | 2 | 3 | 4;
+  catheterisation: CatheterisationLevel;
+  bowelDysfunction: 0 | 1 | 2 | 3 | 4;
 };
 
 export type MentalForm = {
   // Fatigue
   mildFatigue: boolean;
   moderateToSevereFatigue: boolean;
-  // Cognition
+  // Decrease in mentation
+  signsOnlyCognition: boolean;
   lightlyReducedCognition: boolean;
   moderatelyReducedCognition: boolean;
   markedlyReducedCognition: boolean;

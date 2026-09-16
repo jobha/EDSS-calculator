@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
+    "test": "esbuild tests/scoring.test.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/scoring.test.mjs --log-level=warning && node node_modules/.cache/scoring.test.mjs",
     "preview": "vite preview",
     "predeploy": "npm run build",
     "deploy": "gh-pages -d dist"

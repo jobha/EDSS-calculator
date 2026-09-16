@@ -22,4 +22,5 @@ export type AssistanceId = typeof assistanceLevelIds[number];
 
 export type EyeAcuity = "1.0" | "0.68-0.99" | "0.34-0.67" | "0.21-0.33" | "0.10-0.20" | "lt_0.10";
 
-export type Severity = 'normal' | 'mild' | 'moderate' | 'marked' | 'absent';
+// 'signs' (signs only) is used for superficial sensation only
+export type Severity = 'normal' | 'signs' | 'mild' | 'moderate' | 'marked' | 'absent';
