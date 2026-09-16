@@ -3,10 +3,9 @@ import { Language, translations } from "./i18n/translations";
 import type { AssistanceId, EyeAcuity, Severity } from "./types/edss";
 import type { VisualForm, BrainstemForm, PyramidalForm, CerebellarForm, SensoryForm, BowelBladderForm, MentalForm, CatheterisationLevel } from "./types/forms";
 import { ARM_MUSCLES, LEG_MUSCLES } from "./types/forms";
-import { clamp } from "./utils/helpers";
 import { formatEyeAcuity } from "./utils/formatting";
-import { suggestV, suggestBS, suggestP, suggestC, suggestS, suggestBB, suggestM } from "./utils/scoring";
-import { computeEDSSFromInputs, convertVisualForEDSS, convertBBForEDSS, correctedFS, FS_STEP_ROWS, type AmbulationResult, type FSColumn } from "./utils/edss";
+import { convertVisualForEDSS, convertBBForEDSS, correctedFS, FS_STEP_ROWS, type AmbulationResult, type FSColumn } from "./utils/edss";
+import { assess, compareEDSS, FS_KEYS, FS_MAX, type FSKey } from "./utils/assessment";
 import { DEFAULT_STATE, decodeState, encodeState, type FormState } from "./utils/state";
 import { FSRow } from "./components/FSRow";
 import { validateEDSSInputs } from "./utils/validation";
@@ -14,15 +13,17 @@ import { validateEDSSInputs } from "./utils/validation";
 // ============================================================================
 // CONSTANTS & CONFIGURATION
 // ============================================================================
-const fsMeta: Record<string, { label: string; max: number; help: string }> = {
-  V: { label: "V (Visual)", max: 6, help: "Acuity, fields, scotoma; 0-6" },
-  BS: { label: "BS (Brainstem)", max: 5, help: "EOM, nystagmus, cranial nerves; 0-5" },
-  P: { label: "P (Pyramidal)", max: 6, help: "Muscle strength + UMN/gait; 0-6" },
-  C: { label: "C (Cerebellar)", max: 5, help: "Limb, gait and truncal ataxia; 0-5" },
-  S: { label: "S (Sensory)", max: 6, help: "Superficial, vibration, position sense; 0-6" },
-  BB: { label: "BB (Bowel/Bladder)", max: 6, help: "Bladder, catheterisation, bowel; 0-6" },
-  M: { label: "M (Cerebral)", max: 5, help: "Mentation/fatigue; 0-5" },
+const fsMeta: Record<FSKey, { label: string; max: number; help: string }> = {
+  V: { label: "V (Visual)", max: FS_MAX.V, help: "Acuity, fields, scotoma; 0-6" },
+  BS: { label: "BS (Brainstem)", max: FS_MAX.BS, help: "EOM, nystagmus, cranial nerves; 0-5" },
+  P: { label: "P (Pyramidal)", max: FS_MAX.P, help: "Muscle strength + UMN/gait; 0-6" },
+  C: { label: "C (Cerebellar)", max: FS_MAX.C, help: "Limb, gait and truncal ataxia; 0-5" },
+  S: { label: "S (Sensory)", max: FS_MAX.S, help: "Superficial, vibration, position sense; 0-6" },
+  BB: { label: "BB (Bowel/Bladder)", max: FS_MAX.BB, help: "Bladder, catheterisation, bowel; 0-6" },
+  M: { label: "M (Cerebral)", max: FS_MAX.M, help: "Mentation/fatigue; 0-5" },
 };
+
+const scrollToSection = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
 
 const EYE_ACUITIES: EyeAcuity[] = ["1.0", "0.68-0.99", "0.34-0.67", "0.21-0.33", "0.10-0.20", "lt_0.10"];
 const FS_COLUMNS: FSColumn[] = ["0", "1", "2", "3", "4", "5"];
@@ -80,7 +81,7 @@ export default function App() {
   const [distance, setDistance] = useState<string>(DEFAULT_STATE.walkingDistance);
   const [ambulationRestricted, setAmbulationRestricted] = useState<boolean>(DEFAULT_STATE.ambulationRestricted);
 
-  const [fs, setFs] = useState<Record<string, number>>({ V: 0, BS: 0, P: 0, C: 0, S: 0, BB: 0, M: 0 });
+  const [overrides, setOverrides] = useState<FormState["overrides"]>(DEFAULT_STATE.overrides);
 
   const [visual, setVisual] = useState<VisualForm>(DEFAULT_STATE.visual);
   const [brainstem, setBrainstem] = useState<BrainstemForm>(DEFAULT_STATE.brainstem);
@@ -92,26 +93,40 @@ export default function App() {
 
   const [showExplainModal, setShowExplainModal] = useState(false);
 
-  // Auto-suggest numeric FS from checklists (useEffect to avoid scroll jump)
-  useEffect(() => { setFs((prev) => ({ ...prev, V: clamp(suggestV(visual), 0, fsMeta.V.max) })); }, [visual]);
-  useEffect(() => { setFs((prev) => ({ ...prev, BS: clamp(suggestBS(brainstem), 0, fsMeta.BS.max) })); }, [brainstem]);
-  useEffect(() => { setFs((prev) => ({ ...prev, P: clamp(suggestP(pyramidal), 0, fsMeta.P.max) })); }, [pyramidal]);
-  useEffect(() => { setFs((prev) => ({ ...prev, C: clamp(suggestC(cerebellar), 0, fsMeta.C.max) })); }, [cerebellar]);
-  useEffect(() => { setFs((prev) => ({ ...prev, S: clamp(suggestS(sensory), 0, fsMeta.S.max) })); }, [sensory]);
-  useEffect(() => { setFs((prev) => ({ ...prev, BB: clamp(suggestBB(bb), 0, fsMeta.BB.max) })); }, [bb]);
-  useEffect(() => { setFs((prev) => ({ ...prev, M: clamp(suggestM(mental), 0, fsMeta.M.max) })); }, [mental]);
-
-  const parsedDistance = useMemo(() => {
-    if (distance.trim() === "") return null;
-    const n = Number(distance);
-    return Number.isFinite(n) ? clamp(Math.round(n), 0, 2000) : null;
-  }, [distance]);
-
-  const result = useMemo(
-    () => computeEDSSFromInputs(fs, assistance, parsedDistance, ambulationRestricted),
-    [fs, assistance, parsedDistance, ambulationRestricted]
+  const formState: FormState = useMemo(
+    () => ({ visual, brainstem, pyramidal, cerebellar, sensory, bb, mental, assistance, walkingDistance: distance, ambulationRestricted, overrides }),
+    [visual, brainstem, pyramidal, cerebellar, sensory, bb, mental, assistance, distance, ambulationRestricted, overrides]
   );
+  const assessment = useMemo(() => assess(formState), [formState]);
+  const { fs, suggested, overridden, result } = assessment;
+  const parsedDistance = assessment.distance;
   const edss = result.edss;
+
+  const setOverride = (key: FSKey) => (value: number | null) => setOverrides((prev) => {
+    const next = { ...prev };
+    if (value === null) delete next[key]; else next[key] = value;
+    return next;
+  });
+  const fsRowProps = (code: FSKey) => ({
+    code,
+    meta: fsMeta[code],
+    value: fs[code],
+    suggested: suggested[code],
+    overridden: overridden[code],
+    onOverride: setOverride(code),
+    labels: { override: t.overrideScore, auto: t.fsAuto, manual: t.fsManual, reset: t.fsUseSuggested },
+  });
+  const fsWithOverride = (key: FSKey) => `${key} ${fs[key]}${overridden[key] ? ` [${t.fsManualShort.replace('{suggested}', String(suggested[key]))}]` : ''}`;
+
+  // Comparison with a previous visit (saved form state)
+  const [previousInput, setPreviousInput] = useState('');
+  const previousAssessment = useMemo(() => {
+    const state = previousInput.trim() ? decodeState(previousInput) : null;
+    return state ? assess(state) : null;
+  }, [previousInput]);
+  const change = previousAssessment ? compareEDSS(previousAssessment.result.edss, edss) : null;
+  const changeClass = !change ? '' : change.status === 'worsening' ? 'bg-red-100 text-red-900' : change.status === 'improvement' ? 'bg-green-100 text-green-900' : 'bg-gray-100 text-gray-800';
+  const signed = (n: number) => `${n > 0 ? '+' : n < 0 ? '−' : '±'}${Math.abs(n).toFixed(1)}`;
 
   const describeAmbulation = (a: AmbulationResult) => `${t.ambulationScore} ${a.score} (${t.ambulationScoreDescriptions[a.score]})`;
   const rationale = [
@@ -262,16 +277,19 @@ export default function App() {
     const lines = [
       `EDSS ${edss.toFixed(1)}`,
       `${t.ambulationScore} ${result.ambulation?.score ?? 0} (${ambFinding})`,
-      `P ${fs.P}${withFindings(pFlags)}`,
-      `V ${fs.V}${fs.V !== vCorrected ? ` (${t.corrected}: ${vCorrected})` : ''}${vAbnormal ? ` (${vFindings})` : ''}`,
-      `BS ${fs.BS}${withFindings(bsFindings)}`,
-      `C ${fs.C}${withFindings(cerebellarFindings().join(', '))}`,
-      `S ${fs.S}${withFindings(sFindings)}`,
-      `BB ${fs.BB}${fs.BB !== bbCorrected ? ` (${t.corrected}: ${bbCorrected})` : ''}${withFindings(bowelBladderFindings().join(', '))}`,
-      `M ${fs.M}${withFindings(mentalFindings().join(', '))}`,
+      `${fsWithOverride('P')}${withFindings(pFlags)}`,
+      `${fsWithOverride('V')}${fs.V !== vCorrected ? ` (${t.corrected}: ${vCorrected})` : ''}${vAbnormal ? ` (${vFindings})` : ''}`,
+      `${fsWithOverride('BS')}${withFindings(bsFindings)}`,
+      `${fsWithOverride('C')}${withFindings(cerebellarFindings().join(', '))}`,
+      `${fsWithOverride('S')}${withFindings(sFindings)}`,
+      `${fsWithOverride('BB')}${fs.BB !== bbCorrected ? ` (${t.corrected}: ${bbCorrected})` : ''}${withFindings(bowelBladderFindings().join(', '))}`,
+      `${fsWithOverride('M')}${withFindings(mentalFindings().join(', '))}`,
     ];
+    if (previousAssessment && change) {
+      lines.push(`${t.previousVisit}: EDSS ${previousAssessment.result.edss.toFixed(1)} → ${edss.toFixed(1)} (${signed(change.delta)})`);
+    }
     return lines.join('\n');
-  }, [edss, result, fs, assistance, distance, parsedDistance, walkingRestrictedApplies, pyramidal, visual, brainstem, cerebellar, sensory, bb, mental, t]);
+  }, [edss, result, fs, suggested, overridden, previousAssessment, change, assistance, distance, parsedDistance, walkingRestrictedApplies, pyramidal, visual, brainstem, cerebellar, sensory, bb, mental, t]);
 
   // Full examination text (narrative format with normal findings)
   const examinationText = useMemo(() => {
@@ -444,11 +462,11 @@ export default function App() {
   // Generate encoded state string (compressed)
   const stateString = useMemo(() => {
     try {
-      return encodeState({ visual, brainstem, pyramidal, cerebellar, sensory, bb, mental, assistance, walkingDistance: distance, ambulationRestricted });
+      return encodeState(formState);
     } catch {
       return '';
     }
-  }, [visual, brainstem, pyramidal, cerebellar, sensory, bb, mental, assistance, distance, ambulationRestricted]);
+  }, [formState]);
 
   async function copyText(text: string, setDone: (done: boolean) => void) {
     try {
@@ -475,6 +493,7 @@ export default function App() {
     setAssistance(state.assistance);
     setDistance(state.walkingDistance);
     setAmbulationRestricted(state.ambulationRestricted);
+    setOverrides(state.overrides);
   }
 
   function restoreState() {
@@ -489,7 +508,6 @@ export default function App() {
   }
 
   function resetAll() {
-    setFs({ V: 0, BS: 0, P: 0, C: 0, S: 0, BB: 0, M: 0 });
     applyState(DEFAULT_STATE);
   }
 
@@ -521,22 +539,10 @@ export default function App() {
   }
 
   // ---------- UI ----------
-  const FSRowWrapper = ({ code, children }: { code: keyof typeof fsMeta; children: React.ReactNode }) => (
-    <FSRow code={code} meta={fsMeta[code]} fs={fs} setFs={setFs} overrideLabel={t.overrideScore}>
-      {children}
-    </FSRow>
-  );
-
   return (
     <>
-      <style>{`
-        html { overflow-anchor: none; }
-        html, body { scroll-behavior: auto !important; }
-        input[type="checkbox"]:focus { scroll-margin: 0; }
-        * { scroll-margin-top: 0 !important; }
-      `}</style>
       <div className="min-h-screen w-full bg-gray-50 p-4 md:p-8">
-        <div className="max-w-5xl mx-auto space-y-6" style={{ overflowAnchor: 'none' }}>
+        <div className="max-w-5xl mx-auto space-y-6">
           <header className="flex items-center justify-between">
             <h1 className="text-2xl md:text-3xl font-bold">{t.title}</h1>
             <div className="flex items-center gap-4">
@@ -552,8 +558,40 @@ export default function App() {
             </div>
           </header>
 
+          {/* Sticky live result */}
+          <div className="sticky top-2 z-40 rounded-xl border bg-white/95 backdrop-blur shadow-sm px-3 py-2">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+              <div className="flex items-baseline gap-2">
+                <span className="text-xs uppercase tracking-wide opacity-60">EDSS</span>
+                <span className="text-3xl font-black tabular-nums">{edss.toFixed(1)}</span>
+                {change && (
+                  <span className={`text-xs font-semibold rounded-lg px-2 py-0.5 ${changeClass}`} title={t.previousVisit}>
+                    {signed(change.delta)}
+                  </span>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {FS_KEYS.map((k) => (
+                  <button
+                    key={k}
+                    type="button"
+                    onClick={() => scrollToSection(`fs-${k}`)}
+                    className={`rounded-lg border px-2 py-1 text-xs font-mono hover:bg-gray-100 ${overridden[k] ? 'border-amber-400 bg-amber-50' : 'bg-white'}`}
+                    title={overridden[k] ? t.fsManual.replace('{suggested}', String(suggested[k])) : undefined}
+                  >
+                    {k} <span className="font-bold">{fs[k]}</span>
+                    {correctedFSForDisplay[k] !== fs[k] && <span className="opacity-60">→{correctedFSForDisplay[k]}</span>}
+                  </button>
+                ))}
+                <button type="button" onClick={() => scrollToSection('ambulation')} className="rounded-lg border bg-white px-2 py-1 text-xs font-mono hover:bg-gray-100">
+                  {t.ambulationShort} <span className="font-bold">{result.ambulation?.score ?? 0}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
           {/* V */}
-          <FSRowWrapper code="V">
+          <FSRow {...fsRowProps("V")}>
             <div className="space-y-2">
               {([['leftEyeAcuity', t.leftEyeAcuity], ['rightEyeAcuity', t.rightEyeAcuity]] as const).map(([key, label]) => (
                 <div key={key} className="space-y-1">
@@ -581,10 +619,10 @@ export default function App() {
                 {t.discPallor}
               </label>
             </div>
-          </FSRowWrapper>
+          </FSRow>
 
           {/* BS */}
-          <FSRowWrapper code="BS">
+          <FSRow {...fsRowProps("BS")}>
             <div className="space-y-2">
               <div className="space-y-1">
                 <div className="text-sm font-medium">{t.eyeMotility}</div>
@@ -640,10 +678,10 @@ export default function App() {
                 </div>
               ))}
             </div>
-          </FSRowWrapper>
+          </FSRow>
 
           {/* P — Registry-style */}
-          <FSRowWrapper code="P">
+          <FSRow {...fsRowProps("P")}>
             <div className="space-y-2">
               <div className="text-sm font-medium">{t.upperLimbsMRC}</div>
               <div className="overflow-x-auto">
@@ -741,10 +779,10 @@ export default function App() {
                 </label>
               </div>
             </div>
-          </FSRowWrapper>
+          </FSRow>
 
           {/* C */}
-          <FSRowWrapper code="C">
+          <FSRow {...fsRowProps("C")}>
             <div className="space-y-2">
               <div className="space-y-1">
                 <div className="text-sm font-medium">{t.limbAtaxia}</div>
@@ -776,10 +814,10 @@ export default function App() {
               </label>
               <div className="text-xs text-gray-600">{t.cerebellarNote}</div>
             </div>
-          </FSRowWrapper>
+          </FSRow>
 
           {/* S — Registry-style */}
-          <FSRowWrapper code="S">
+          <FSRow {...fsRowProps("S")}>
             <div className="space-y-2">
               <div className="text-sm font-medium">{t.vibration}</div>
               <div className="space-y-1">
@@ -929,10 +967,10 @@ export default function App() {
                 </label>
               </div>
             </div>
-          </FSRowWrapper>
+          </FSRow>
 
           {/* BB */}
-          <FSRowWrapper code="BB">
+          <FSRow {...fsRowProps("BB")}>
             <div className="space-y-2">
               <div className="text-sm font-semibold">{t.bladderSymptoms}</div>
               <LevelSelect label={t.urinaryHesitancy} value={bb.urinaryHesitancy} labels={t.urinaryHesitancyLevels} onChange={setBBLevel('urinaryHesitancy')} />
@@ -948,10 +986,10 @@ export default function App() {
               <div className="text-sm font-semibold">{t.bowelSymptoms}</div>
               <LevelSelect label={t.bowelDysfunction} value={bb.bowelDysfunction} labels={t.bowelDysfunctionLevels} onChange={setBBLevel('bowelDysfunction')} />
             </div>
-          </FSRowWrapper>
+          </FSRow>
 
           {/* M */}
-          <FSRowWrapper code="M">
+          <FSRow {...fsRowProps("M")}>
             <div className="space-y-1">
               <div className="text-sm font-medium">{t.cognitiveFunction}</div>
               {cognitionOptions.map(([key, label]) => (
@@ -965,11 +1003,11 @@ export default function App() {
               ))}
               <div className="text-xs text-gray-600 pt-1">{t.cerebralNote}</div>
             </div>
-          </FSRowWrapper>
+          </FSRow>
 
           {/* Ambulation + Result + Copy */}
           <section className="grid gap-6 md:grid-cols-2">
-            <section className="space-y-3 p-3 rounded-2xl bg-white border">
+            <section id="ambulation" className="space-y-3 p-3 rounded-2xl bg-white border scroll-mt-28">
               <h2 className="text-xl font-semibold">{t.ambulation}</h2>
               <div className="space-y-2">
                 <label className="block text-sm font-medium">{t.assistanceReq}</label>
@@ -1085,6 +1123,62 @@ export default function App() {
               </div>
             </section>
           </section>
+
+          {/* Compare with previous visit */}
+          <section className="p-4 rounded-2xl bg-white border space-y-3">
+            <h2 className="text-xl font-semibold">{t.compareTitle}</h2>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={previousInput}
+                onChange={(e) => setPreviousInput(e.target.value)}
+                placeholder={t.comparePaste}
+                className="flex-1 min-w-0 px-2 py-1 text-xs font-mono bg-white border border-gray-300 rounded"
+              />
+              {previousInput && (
+                <button onClick={() => setPreviousInput('')} className="px-3 py-1 text-xs bg-white border border-gray-300 rounded hover:bg-gray-100">{t.compareClear}</button>
+              )}
+            </div>
+            {previousInput.trim() !== '' && !previousAssessment && <div className="text-xs text-red-600">{t.restoreError}</div>}
+            {previousAssessment && change && (
+              <>
+                <div className={`text-sm rounded-lg p-2 ${changeClass}`}>
+                  {(change.status === 'worsening' ? t.compareWorsening : change.status === 'improvement' ? t.compareImprovement : t.compareStable)
+                    .replace('{threshold}', change.threshold.toFixed(1))
+                    .replace('{previous}', previousAssessment.result.edss.toFixed(1))}
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="text-sm border-collapse">
+                    <thead>
+                      <tr className="text-left">
+                        <th className="py-1 pr-4"></th>
+                        <th className="py-1 pr-4">{t.previous}</th>
+                        <th className="py-1 pr-4">{t.current}</th>
+                        <th className="py-1 pr-4">{t.change}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[
+                        { label: 'EDSS', prev: previousAssessment.result.edss, curr: edss, decimals: 1 },
+                        ...FS_KEYS.map((k) => ({ label: fsMeta[k].label, prev: previousAssessment.fs[k], curr: fs[k], decimals: 0 })),
+                        { label: t.ambulationScore, prev: previousAssessment.result.ambulation?.score ?? 0, curr: result.ambulation?.score ?? 0, decimals: 0 },
+                      ].map((row) => (
+                        <tr key={row.label} className="border-t">
+                          <td className="py-1 pr-4">{row.label}</td>
+                          <td className="py-1 pr-4 tabular-nums">{row.prev.toFixed(row.decimals)}</td>
+                          <td className="py-1 pr-4 tabular-nums">{row.curr.toFixed(row.decimals)}</td>
+                          <td className={`py-1 pr-4 tabular-nums ${row.curr > row.prev ? 'text-red-700 font-semibold' : row.curr < row.prev ? 'text-green-700 font-semibold' : 'opacity-50'}`}>
+                            {row.curr === row.prev ? '–' : row.decimals ? signed(row.curr - row.prev) : `${row.curr > row.prev ? '+' : '−'}${Math.abs(row.curr - row.prev)}`}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="text-xs text-gray-600">{t.compareRescoredNote}</div>
+              </>
+            )}
+          </section>
         </div>
       </div>
 
@@ -1102,7 +1196,8 @@ export default function App() {
               <div className="p-4 rounded-xl bg-gray-50 border">
                 <div className="font-semibold text-sm mb-2">{t.step} 1: {t.rawFSScores}</div>
                 <div className="text-sm">
-                  V={fs.V}, BS={fs.BS}, P={fs.P}, C={fs.C}, S={fs.S}, BB={fs.BB}, M={fs.M}
+                  {FS_KEYS.map((k) => `${k}=${fs[k]}${overridden[k] ? '*' : ''}`).join(', ')}
+                  {FS_KEYS.some((k) => overridden[k]) && <div className="text-xs text-amber-800 mt-1">* {t.fsManualNote}</div>}
                 </div>
               </div>
 

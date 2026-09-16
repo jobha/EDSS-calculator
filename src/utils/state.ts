@@ -6,6 +6,7 @@ import LZString from "lz-string";
 import type { AssistanceId } from "../types/edss";
 import type { VisualForm, BrainstemForm, PyramidalForm, CerebellarForm, SensoryForm, BowelBladderForm, MentalForm, MuscleGroup } from "../types/forms";
 import { ARM_MUSCLES, LEG_MUSCLES } from "../types/forms";
+import { FS_KEYS, FS_MAX, type FSScores } from "./assessment";
 
 export type FormState = {
   visual: VisualForm;
@@ -18,6 +19,8 @@ export type FormState = {
   assistance: AssistanceId;
   walkingDistance: string;
   ambulationRestricted: boolean;
+  // Manually overridden FS scores
+  overrides: Partial<FSScores>;
 };
 
 export const DEFAULT_STATE: FormState = {
@@ -31,6 +34,7 @@ export const DEFAULT_STATE: FormState = {
   assistance: "none",
   walkingDistance: "500",
   ambulationRestricted: false,
+  overrides: {},
 };
 
 const STATE_VERSION = 3;
@@ -97,7 +101,18 @@ export function migrateState(version: number, saved: any): FormState {
   let state = saved ?? {};
   if (version < 2) state = migrateV1(state);
   if (version < 3) state = migrateV2(state);
-  return mergeWithDefaults(state, DEFAULT_STATE);
+  const merged: FormState = mergeWithDefaults(state, DEFAULT_STATE);
+  merged.overrides = sanitizeOverrides(state.overrides);
+  return merged;
+}
+
+function sanitizeOverrides(saved: any): Partial<FSScores> {
+  const overrides: Partial<FSScores> = {};
+  for (const key of FS_KEYS) {
+    const value = saved?.[key];
+    if (Number.isInteger(value) && value >= 0 && value <= FS_MAX[key]) overrides[key] = value;
+  }
+  return overrides;
 }
 
 // Version 2 used 12 muscle groups per side; version 3 uses the 10 groups of the scoring sheet.
