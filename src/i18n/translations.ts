@@ -310,6 +310,16 @@ export const translations = {
     fsManual: "Manual – suggested {suggested}",
     fsManualShort: "manual; suggested {suggested}",
     fsUseSuggested: "Use suggested",
+    allNormal: "All normal",
+    fsHelp: {
+      V: "Acuity, fields, scotoma; 0-6",
+      BS: "EOM, nystagmus, cranial nerves; 0-5",
+      P: "Muscle strength, reflexes, gait; 0-6",
+      C: "Limb, gait and truncal ataxia; 0-5",
+      S: "Superficial, vibration, position sense; 0-6",
+      BB: "Bladder, catheterisation, bowel; 0-6",
+      M: "Mentation, fatigue; 0-5",
+    },
     fsManualNote: "Manually overridden FS score",
     ambulationShort: "Amb",
     // Previous visit
@@ -630,6 +640,16 @@ export const translations = {
     fsManual: "Manuell – foreslått {suggested}",
     fsManualShort: "manuell; foreslått {suggested}",
     fsUseSuggested: "Bruk foreslått",
+    allNormal: "Alt normalt",
+    fsHelp: {
+      V: "Visus, synsfelt, skotom; 0-6",
+      BS: "Øyebevegelser, nystagmus, hjernenerver; 0-5",
+      P: "Muskelkraft, reflekser, gange; 0-6",
+      C: "Ekstremitets-, gang- og trunkal ataksi; 0-5",
+      S: "Overflatesensibilitet, vibrasjon, leddsans; 0-6",
+      BB: "Blære, kateterisering, tarm; 0-6",
+      M: "Mentalfunksjon, fatigue; 0-5",
+    },
     fsManualNote: "Manuelt overstyrt FS-skår",
     ambulationShort: "Gange",
     // Previous visit
