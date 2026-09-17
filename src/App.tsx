@@ -8,6 +8,7 @@ import { convertVisualForEDSS, convertBBForEDSS, correctedFS, FS_STEP_ROWS, type
 import { assess, compareEDSS, FS_KEYS, FS_MAX, type FSKey } from "./utils/assessment";
 import { DEFAULT_STATE, decodeState, encodeState, type FormState } from "./utils/state";
 import { FSRow } from "./components/FSRow";
+import { Check, Choice, Toggles, highlight, levelOptions, splitLevel, type ChoiceOption } from "./components/controls";
 import { validateEDSSInputs } from "./utils/validation";
 
 // ============================================================================
@@ -28,16 +29,10 @@ const scrollToSection = (id: string) => document.getElementById(id)?.scrollIntoV
 const EYE_ACUITIES: EyeAcuity[] = ["1.0", "0.68-0.99", "0.34-0.67", "0.21-0.33", "0.10-0.20", "lt_0.10"];
 const FS_COLUMNS: FSColumn[] = ["0", "1", "2", "3", "4", "5"];
 
-function LevelSelect({ label, value, labels, onChange }: { label: string; value: number; labels: string[]; onChange: (value: number) => void }) {
-  return (
-    <div className="space-y-1">
-      <div className="text-sm font-medium">{label}</div>
-      <select className="w-full border rounded-lg p-1 text-sm" value={value} onChange={(e) => onChange(Number(e.target.value))}>
-        {labels.map((l, i) => <option key={i} value={i}>{l}</option>)}
-      </select>
-    </div>
-  );
-}
+const shallowEqual = (a: object, b: object) => {
+  const ra = a as Record<string, unknown>, rb = b as Record<string, unknown>;
+  return Object.keys(rb).every((k) => ra[k] === rb[k]);
+};
 
 // ============================================================================
 // COMPONENT
@@ -107,14 +102,25 @@ export default function App() {
     if (value === null) delete next[key]; else next[key] = value;
     return next;
   });
+  const sectionForms: Record<FSKey, [object, object, () => void]> = {
+    V: [visual, DEFAULT_STATE.visual, () => setVisual(DEFAULT_STATE.visual)],
+    BS: [brainstem, DEFAULT_STATE.brainstem, () => setBrainstem(DEFAULT_STATE.brainstem)],
+    P: [pyramidal, DEFAULT_STATE.pyramidal, () => setPyramidal(DEFAULT_STATE.pyramidal)],
+    C: [cerebellar, DEFAULT_STATE.cerebellar, () => setCerebellar(DEFAULT_STATE.cerebellar)],
+    S: [sensory, DEFAULT_STATE.sensory, () => setSensory(DEFAULT_STATE.sensory)],
+    BB: [bb, DEFAULT_STATE.bb, () => setBB(DEFAULT_STATE.bb)],
+    M: [mental, DEFAULT_STATE.mental, () => setMental(DEFAULT_STATE.mental)],
+  };
   const fsRowProps = (code: FSKey) => ({
     code,
-    meta: fsMeta[code],
+    meta: { ...fsMeta[code], help: t.fsHelp[code] },
+    isNormal: shallowEqual(sectionForms[code][0], sectionForms[code][1]) && !overridden[code],
+    onNormal: () => { sectionForms[code][2](); setOverride(code)(null); },
     value: fs[code],
     suggested: suggested[code],
     overridden: overridden[code],
     onOverride: setOverride(code),
-    labels: { override: t.overrideScore, auto: t.fsAuto, manual: t.fsManual, reset: t.fsUseSuggested },
+    labels: { override: t.overrideScore, auto: t.fsAuto, manual: t.fsManual, reset: t.fsUseSuggested, allNormal: t.allNormal },
   });
   const fsWithOverride = (key: FSKey) => `${key} ${fs[key]}${overridden[key] ? ` [${t.fsManualShort.replace('{suggested}', String(suggested[key]))}]` : ''}`;
 
@@ -216,7 +222,7 @@ export default function App() {
 
     // UMN signs
     const sidesText = (label: string, left: boolean, right: boolean) => {
-      const sides = [left && t.leftAbbrev, right && t.rightAbbrev].filter(Boolean);
+      const sides = [right && t.rightAbbrev, left && t.leftAbbrev].filter(Boolean);
       return sides.length > 0 ? `${label} ${sides.join('+')}` : '';
     };
 
@@ -233,7 +239,7 @@ export default function App() {
     const vCorrected = convertVisualForEDSS(fs.V);
     const acuityAbnormal = visual.leftEyeAcuity !== "1.0" || visual.rightEyeAcuity !== "1.0";
     const vFindings = [
-      `L: ${formatEyeAcuity(visual.leftEyeAcuity)}, R: ${formatEyeAcuity(visual.rightEyeAcuity)}`,
+      `${t.rightAbbrev}: ${formatEyeAcuity(visual.rightEyeAcuity)}, ${t.leftAbbrev}: ${formatEyeAcuity(visual.leftEyeAcuity)}`,
       ...visualExtras(),
     ].join(', ');
     const vAbnormal = acuityAbnormal || visualExtras().length > 0;
@@ -243,10 +249,10 @@ export default function App() {
                           brainstem.nystagmus === "clear" ? t.clearNystagmus :
                           brainstem.nystagmus === "mild" ? t.mildNystagmus : '';
 
-    // Format sides with levels (e.g., "L:2+R:3" or "L:2" or "R:3")
+    // Format sides with levels, right first (e.g., "R:3+L:2")
     const levelSides = (left: number, right: number) => [
+      right > 0 && `${t.rightAbbrev}:${right}`,
       left > 0 && `${t.leftAbbrev}:${left}`,
-      right > 0 && `${t.rightAbbrev}:${right}`
     ].filter(Boolean).join('+');
     const facialSensSides = levelSides(brainstem.facialSensLeft, brainstem.facialSensRight);
     const facialSymSides = levelSides(brainstem.facialSymLeft, brainstem.facialSymRight);
@@ -317,7 +323,7 @@ export default function App() {
     } else if (bothEyes10) {
       sections.push(`${t.visualAcuity} ${t.sensNormal.toLowerCase()}, ${vExtras.join(', ')}.`);
     } else {
-      const acuityText = `${t.leftEye} ${formatEyeAcuity(visual.leftEyeAcuity)}, ${t.rightEye} ${formatEyeAcuity(visual.rightEyeAcuity)}`;
+      const acuityText = `${t.rightEye} ${formatEyeAcuity(visual.rightEyeAcuity)}, ${t.leftEye} ${formatEyeAcuity(visual.leftEyeAcuity)}`;
       sections.push([acuityText, ...vExtras].join(', ') + '.');
     }
 
@@ -333,8 +339,8 @@ export default function App() {
     if (brainstem.ino) bsParts.push(t.inoPresent);
 
     const sideLevels = (left: number, right: number) => [
+      right > 0 && `${t.rightAbbrev} (${t.level} ${right})`,
       left > 0 && `${t.leftAbbrev} (${t.level} ${left})`,
-      right > 0 && `${t.rightAbbrev} (${t.level} ${right})`
     ].filter(Boolean);
     const facialSensExamSides = sideLevels(brainstem.facialSensLeft, brainstem.facialSensRight);
     if (facialSensExamSides.length > 0) bsParts.push(`${t.facialSensibilityDeficit} ${facialSensExamSides.join(', ')}`);
@@ -370,7 +376,7 @@ export default function App() {
     const umnSigns: string[] = [];
 
     // Lateralized UMN signs
-    const sideWord = (left: boolean, right: boolean) => left && right ? t.bilaterally : left ? t.left : t.right;
+    const sideWord = (left: boolean, right: boolean) => left && right ? t.bilaterally : right ? t.right : t.left;
     if (pyramidal.hyperreflexiaLeft || pyramidal.hyperreflexiaRight) {
       umnSigns.push(`${t.hyperreflexia.toLowerCase()} ${sideWord(pyramidal.hyperreflexiaLeft, pyramidal.hyperreflexiaRight)}`);
     }
@@ -515,20 +521,12 @@ export default function App() {
   const setBrainstemLevel = (key: keyof BrainstemForm) => (value: number) => setBrainstem((prev) => ({ ...prev, [key]: value }));
   const setBBLevel = (key: keyof BowelBladderForm) => (value: number) => setBB((prev) => ({ ...prev, [key]: value }));
 
-  const cognitionOptions = [
-    ['signsOnlyCognition', t.signsOnlyCog],
-    ['lightlyReducedCognition', t.lightlyReducedCog],
-    ['moderatelyReducedCognition', t.moderatelyReducedCog],
-    ['markedlyReducedCognition', t.markedlyReducedCog],
-    ['pronouncedDementia', t.pronouncedDementia],
-  ] as const;
-  const fatigueOptions = [
-    ['mildFatigue', t.mildFatigue],
-    ['moderateToSevereFatigue', t.moderateSevereFatigue],
-  ] as const;
-  // Options within a group are mutually exclusive
-  const setExclusive = (keys: readonly (readonly [keyof MentalForm, string])[], key: keyof MentalForm, checked: boolean) =>
-    setMental((prev) => ({ ...prev, ...Object.fromEntries(keys.map(([k]) => [k, k === key ? checked : false])) }));
+  // Cerebral FS inputs are stored as exclusive flags; the form shows them as levels
+  const cognitionKeys = ['signsOnlyCognition', 'lightlyReducedCognition', 'moderatelyReducedCognition', 'markedlyReducedCognition', 'pronouncedDementia'] as const;
+  const fatigueKeys = ['mildFatigue', 'moderateToSevereFatigue'] as const;
+  const levelOf = (keys: readonly (keyof MentalForm)[]) => keys.findIndex((k) => mental[k]) + 1;
+  const setLevel = (keys: readonly (keyof MentalForm)[]) => (level: number) =>
+    setMental((prev) => ({ ...prev, ...Object.fromEntries(keys.map((k, i) => [k, i + 1 === level])) }));
 
   function handleLanguageChange(newLang: Language) {
     setLanguage(newLang);
@@ -539,13 +537,177 @@ export default function App() {
   }
 
   // ---------- UI ----------
+  const acuityOptions: ChoiceOption<EyeAcuity>[] = EYE_ACUITIES.map((a) => ({ value: a, short: formatEyeAcuity(a) }));
+  const visualFieldOptions: ChoiceOption<VisualForm["visualFieldDeficit"]>[] = ([
+    ["none", t.vfNone], ["mild", t.vfMild], ["moderate", t.vfModerate], ["marked", t.vfMarked],
+  ] as const).map(([value, label], i) => ({ value, ...splitLevel(label, String(i)) }));
+  const nystagmusOptions: ChoiceOption<BrainstemForm["nystagmus"]>[] = ([
+    ["none", t.nystagmusNone], ["mild", t.nystagmusMild], ["clear", t.nystagmusClear], ["spontaneous", t.nystagmusSpontaneous],
+  ] as const).map(([value, label], i) => ({ value, ...splitLevel(label, String(i)) }));
+  const catheterisationOptions: ChoiceOption<CatheterisationLevel>[] = (Object.keys(t.catheterisationLevels) as CatheterisationLevel[])
+    .map((value) => ({ value, short: t.catheterisationLevels[value] }));
+  const cognitionOptions: ChoiceOption<number>[] = [
+    { value: 0, short: "0" },
+    ...[t.signsOnlyCog, t.lightlyReducedCog, t.moderatelyReducedCog, t.markedlyReducedCog, t.pronouncedDementia]
+      .map((description, i) => ({ value: i + 1, short: String(i + 1), description })),
+  ];
+  const fatigueOptions: ChoiceOption<number>[] = [
+    { value: 0, short: "0" },
+    { value: 1, short: "1", description: t.mildFatigue },
+    { value: 2, short: "2–3", description: t.moderateSevereFatigue },
+  ];
+
+  const LIMBS = [["RightArm", t.rightArmAbbrev], ["LeftArm", t.leftArmAbbrev], ["RightLeg", t.rightLegAbbrev], ["LeftLeg", t.leftLegAbbrev]] as const;
+  type SensoryPrefix = "pt" | "vib" | "jp";
+  const sensoryField = (prefix: SensoryPrefix, field: string) => (sensory as unknown as Record<string, unknown>)[`${prefix}${field}`];
+  const sensoryModalities: { prefix: SensoryPrefix; label: string; options: ChoiceOption<Severity>[] }[] = [
+    { prefix: "pt", label: t.painTouch, options: (["signs", "mild", "moderate", "marked", "absent"] as const).map((k) => ({ value: k, ...splitLevel(t.ptOptions[k], k) })) },
+    { prefix: "vib", label: t.vibration, options: (["mild", "moderate", "marked"] as const).map((k) => ({ value: k, ...splitLevel(t.vibOptions[k], k) })) },
+    { prefix: "jp", label: t.jointPosition, options: (["mild", "moderate", "marked"] as const).map((k) => ({ value: k, ...splitLevel(t.jpOptions[k], k) })) },
+  ];
+  const setSensorySeverity = (prefix: SensoryPrefix, severity: Severity) => setSensory((prev) => ({
+    ...prev,
+    [`${prefix}Severity`]: severity,
+    // Clearing the severity clears the affected limbs
+    ...(severity === "normal" ? { [`${prefix}Count`]: 0, ...Object.fromEntries(LIMBS.map(([limb]) => [`${prefix}${limb}`, false])) } : {}),
+  }));
+  const setSensoryLimb = (prefix: SensoryPrefix, limb: string, checked: boolean) => setSensory((prev) => {
+    const next = { ...prev, [`${prefix}${limb}`]: checked } as unknown as Record<string, unknown>;
+    next[`${prefix}Count`] = LIMBS.filter(([l]) => next[`${prefix}${l}`]).length;
+    return next as unknown as SensoryForm;
+  });
+
+  // Several graded selections under one label, e.g. right/left side or the four limbs
+  const multiChoice = (label: string, entries: readonly (readonly [string, number, (value: number) => void])[], labels: readonly string[]) => {
+    const options = levelOptions(labels);
+    const abnormal = entries.filter(([, value]) => value > 0);
+    return (
+      <div className={`space-y-1 ${highlight(abnormal.length > 0)}`}>
+        <div className="text-sm font-medium">{label}</div>
+        <div className="flex flex-wrap gap-x-4 gap-y-1">
+          {entries.map(([side, value, onChange]) => (
+            <div key={side} className="flex items-center gap-2">
+              <span className="text-xs font-semibold w-9 shrink-0">{side}</span>
+              <Choice value={value} options={options} onChange={onChange} showDescription={false} />
+            </div>
+          ))}
+        </div>
+        {abnormal.map(([side, value]) => (
+          <div key={side} className="text-xs text-blue-950"><span className="font-semibold">{side}:</span> {options[value].description}</div>
+        ))}
+      </div>
+    );
+  };
+
+  const strengthOptions: ChoiceOption<number>[] = [5, 4, 3, 2, 1, 0].map((v) => ({ value: v, short: String(v) }));
+  const strengthTable = (title: string, muscles: readonly (typeof ARM_MUSCLES[number] | typeof LEG_MUSCLES[number])[]) => (
+    <div className="space-y-1">
+      <div className="text-sm font-medium">{title}</div>
+      <div className="grid grid-cols-[auto_auto] sm:grid-cols-[minmax(9rem,1fr)_auto_auto] gap-x-2 sm:gap-x-4 gap-y-1 items-center">
+        <div className="hidden sm:block text-xs opacity-60">{t.movement}</div>
+        <div className="text-xs font-semibold">{t.rightAbbrev}</div>
+        <div className="text-xs font-semibold">{t.leftAbbrev}</div>
+        {muscles.map((m) => {
+          const weak = pyramidal[`${m}R`] < 5 || pyramidal[`${m}L`] < 5;
+          return (
+            <React.Fragment key={m}>
+              <div className={`col-span-2 sm:col-span-1 text-sm pt-1 sm:pt-0 ${weak ? "font-semibold text-blue-950" : ""}`}>{t.muscles[m]}</div>
+              {(["R", "L"] as const).map((side) => (
+                <Choice
+                  key={side}
+                  compact
+                  value={pyramidal[`${m}${side}`]}
+                  options={strengthOptions}
+                  normal={5}
+                  showDescription={false}
+                  onChange={(v) => setPyramidal((prev) => ({ ...prev, [`${m}${side}`]: v }))}
+                />
+              ))}
+            </React.Fragment>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  const fsChips = (
+    <div className="flex flex-wrap gap-1.5">
+      {FS_KEYS.map((k) => (
+        <button
+          key={k}
+          type="button"
+          onClick={() => scrollToSection(`fs-${k}`)}
+          className={`rounded-lg border px-2 py-1 text-xs font-mono hover:bg-gray-100 ${overridden[k] ? 'border-amber-400 bg-amber-50' : fs[k] > 0 ? 'border-blue-300 bg-blue-50' : 'bg-white'}`}
+          title={overridden[k] ? t.fsManual.replace('{suggested}', String(suggested[k])) : undefined}
+        >
+          {k} <span className="font-bold">{fs[k]}</span>
+          {correctedFSForDisplay[k] !== fs[k] && <span className="opacity-60">→{correctedFSForDisplay[k]}</span>}
+        </button>
+      ))}
+      <button type="button" onClick={() => scrollToSection('ambulation')} className={`rounded-lg border px-2 py-1 text-xs font-mono hover:bg-gray-100 ${result.ambulation ? 'border-blue-300 bg-blue-50' : 'bg-white'}`}>
+        {t.ambulationShort} <span className="font-bold">{result.ambulation?.score ?? 0}</span>
+      </button>
+    </div>
+  );
+
+  const changeBadge = change && (
+    <span className={`text-xs font-semibold rounded-lg px-2 py-0.5 ${changeClass}`} title={t.previousVisit}>{signed(change.delta)}</span>
+  );
+
+  const resultPanel = (
+    <div className="space-y-3">
+      <section className="p-4 rounded-2xl bg-white shadow-sm border space-y-3">
+        <div className="flex items-baseline gap-3">
+          <div className="text-5xl font-black tabular-nums">{edss.toFixed(1)}</div>
+          <div className="text-sm uppercase tracking-wide opacity-60">EDSS</div>
+          {changeBadge}
+        </div>
+        <div className="text-sm opacity-80">{rationale}</div>
+        {fsChips}
+        <div className="flex flex-wrap gap-2">
+          <button onClick={copySummary} className="px-3 py-2 rounded-xl text-sm font-medium bg-gray-900 text-white hover:bg-gray-700">{copied ? t.copied : t.copySummary}</button>
+          <button onClick={copyExamination} className="px-3 py-2 rounded-xl border text-sm hover:bg-gray-100">{copiedExam ? t.copied : t.copyExamText}</button>
+          <button onClick={() => setShowExplainModal(true)} className="px-3 py-2 rounded-xl border text-sm hover:bg-blue-50 hover:border-blue-300">{t.explainEDSS}</button>
+        </div>
+      </section>
+
+      {warnings.length > 0 && (
+        <section className="p-3 rounded-xl border border-amber-300 bg-amber-50">
+          <div className="text-xs font-semibold mb-2 text-amber-900">{t.warnings}</div>
+          <div className="space-y-2">
+            {warnings.map((warning, idx) => (
+              <div key={idx} className={`text-xs p-2 rounded-lg ${warning.type === 'warning' ? 'bg-amber-100 text-amber-900' : 'bg-blue-100 text-blue-900'}`}>
+                <span className="font-semibold">{warning.type === 'warning' ? '⚠️' : 'ℹ️'}</span> {warning.message}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <section className="p-3 rounded-xl border bg-white">
+        <div className="text-xs font-semibold mb-2">{t.quickSummary}</div>
+        <pre className="whitespace-pre-wrap text-xs">{summary}</pre>
+      </section>
+
+      <section className="p-3 rounded-xl border bg-white">
+        <div className="text-xs font-semibold mb-2">{t.fullExamText}</div>
+        <pre className="whitespace-pre-wrap text-xs">{examinationText}</pre>
+      </section>
+
+      <div className="text-xs opacity-60 px-1 space-y-0.5">
+        <div>{t.rawFS}: {countFS(0)}×0, {countFS(1)}×1, {countFS(2)}×2, {countFS(3)}×3, {countFS(4)}×4, {countFS(5)}×5, {countFS(6)}×6</div>
+        <div>{t.correctedFS}: {countCorrectedFS(0)}×0, {countCorrectedFS(1)}×1, {countCorrectedFS(2)}×2, {countCorrectedFS(3)}×3, {countCorrectedFS(4)}×4, {countCorrectedFS(5)}×5, {countCorrectedFS(6)}×6</div>
+      </div>
+    </div>
+  );
+
   return (
     <>
-      <div className="min-h-screen w-full bg-gray-50 p-4 md:p-8">
-        <div className="max-w-5xl mx-auto space-y-6">
-          <header className="flex items-center justify-between">
+      <div className="min-h-screen w-full bg-gray-50 px-4 py-4 md:px-6 md:py-6">
+        <div className="max-w-7xl mx-auto space-y-4">
+          <header className="flex flex-wrap items-center justify-between gap-3">
             <h1 className="text-2xl md:text-3xl font-bold">{t.title}</h1>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               <select
                 value={language}
                 onChange={(e) => handleLanguageChange(e.target.value as Language)}
@@ -558,547 +720,267 @@ export default function App() {
             </div>
           </header>
 
-          {/* Sticky live result */}
-          <div className="sticky top-2 z-40 rounded-xl border bg-white/95 backdrop-blur shadow-sm px-3 py-2">
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-              <div className="flex items-baseline gap-2">
-                <span className="text-xs uppercase tracking-wide opacity-60">EDSS</span>
-                <span className="text-3xl font-black tabular-nums">{edss.toFixed(1)}</span>
-                {change && (
-                  <span className={`text-xs font-semibold rounded-lg px-2 py-0.5 ${changeClass}`} title={t.previousVisit}>
-                    {signed(change.delta)}
-                  </span>
-                )}
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {FS_KEYS.map((k) => (
-                  <button
-                    key={k}
-                    type="button"
-                    onClick={() => scrollToSection(`fs-${k}`)}
-                    className={`rounded-lg border px-2 py-1 text-xs font-mono hover:bg-gray-100 ${overridden[k] ? 'border-amber-400 bg-amber-50' : 'bg-white'}`}
-                    title={overridden[k] ? t.fsManual.replace('{suggested}', String(suggested[k])) : undefined}
-                  >
-                    {k} <span className="font-bold">{fs[k]}</span>
-                    {correctedFSForDisplay[k] !== fs[k] && <span className="opacity-60">→{correctedFSForDisplay[k]}</span>}
+          <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_24rem] lg:gap-6 lg:items-start">
+            <main className="space-y-4 min-w-0">
+              {/* Sticky live result (narrow screens; wide screens use the side panel) */}
+              <div className="lg:hidden sticky top-2 z-40 rounded-xl border bg-white/95 backdrop-blur shadow-sm px-3 py-2 space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs uppercase tracking-wide opacity-60">EDSS</span>
+                  <span className="text-3xl font-black tabular-nums">{edss.toFixed(1)}</span>
+                  {changeBadge}
+                  <button onClick={copySummary} className="ml-auto px-3 py-1.5 rounded-lg text-xs font-medium bg-gray-900 text-white hover:bg-gray-700">
+                    {copied ? t.copied : t.copySummary}
                   </button>
-                ))}
-                <button type="button" onClick={() => scrollToSection('ambulation')} className="rounded-lg border bg-white px-2 py-1 text-xs font-mono hover:bg-gray-100">
-                  {t.ambulationShort} <span className="font-bold">{result.ambulation?.score ?? 0}</span>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* V */}
-          <FSRow {...fsRowProps("V")}>
-            <div className="space-y-2">
-              {([['leftEyeAcuity', t.leftEyeAcuity], ['rightEyeAcuity', t.rightEyeAcuity]] as const).map(([key, label]) => (
-                <div key={key} className="space-y-1">
-                  <div className="text-sm font-medium">{label}</div>
-                  <select className="w-full border rounded-lg p-1 text-sm" value={visual[key]} onChange={(e)=>setVisual({...visual, [key]: e.target.value as EyeAcuity})}>
-                    {EYE_ACUITIES.map((a) => <option key={a} value={a}>{formatEyeAcuity(a)}</option>)}
-                  </select>
                 </div>
-              ))}
-            </div>
-
-            <div className="space-y-2">
-              <div className="space-y-1">
-                <div className="text-sm font-medium">{t.visualFieldDeficit}</div>
-                <select className="w-full border rounded-lg p-1 text-sm" value={visual.visualFieldDeficit} onChange={(e)=>setVisual({...visual, visualFieldDeficit: e.target.value as VisualForm["visualFieldDeficit"]})}>
-                  <option value="none">{t.vfNone}</option>
-                  <option value="mild">{t.vfMild}</option>
-                  <option value="moderate">{t.vfModerate}</option>
-                  <option value="marked">{t.vfMarked}</option>
-                </select>
-              </div>
-              <LevelSelect label={t.scotoma} value={visual.scotoma} labels={t.scotomaLevels} onChange={(v)=>setVisual({...visual, scotoma: v as VisualForm["scotoma"]})} />
-              <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={visual.discPallor} onChange={(e)=>setVisual({...visual, discPallor: e.target.checked})}/>
-                {t.discPallor}
-              </label>
-            </div>
-          </FSRow>
-
-          {/* BS */}
-          <FSRow {...fsRowProps("BS")}>
-            <div className="space-y-2">
-              <div className="space-y-1">
-                <div className="text-sm font-medium">{t.eyeMotility}</div>
-                <select className="w-full border rounded-lg p-1 text-sm" value={brainstem.eyeMotilityLevel} onChange={(e)=>setBrainstem({...brainstem, eyeMotilityLevel: Number(e.target.value) as 0|1|2|3|4})}>
-                  <option value="0">{t.eyeMotility0}</option>
-                  <option value="1">{t.eyeMotility1}</option>
-                  <option value="2">{t.eyeMotility2}</option>
-                  <option value="3">{t.eyeMotility3}</option>
-                  <option value="4">{t.eyeMotility4}</option>
-                </select>
+                {fsChips}
               </div>
 
-              <div className="space-y-1">
-                <div className="text-sm font-medium">{t.nystagmus}</div>
-                <select className="w-full border rounded-lg p-1 text-sm" value={brainstem.nystagmus} onChange={(e)=>setBrainstem({...brainstem, nystagmus: e.target.value as "none"|"mild"|"clear"|"spontaneous"})}>
-                  <option value="none">{t.nystagmusNone}</option>
-                  <option value="mild">{t.nystagmusMild}</option>
-                  <option value="clear">{t.nystagmusClear}</option>
-                  <option value="spontaneous">{t.nystagmusSpontaneous}</option>
-                </select>
-              </div>
-
-              <div className="space-y-1">
-                <label className="flex items-center gap-2 text-sm">
-                  <input type="checkbox" checked={brainstem.ino} onChange={(e)=>setBrainstem({...brainstem, ino: e.target.checked})}/>
-                  {t.ino}
-                </label>
-              </div>
-
-              <LevelSelect label={t.dysarthria} value={brainstem.dysarthriaLevel} labels={t.dysarthriaLevels} onChange={setBrainstemLevel('dysarthriaLevel')} />
-              <LevelSelect label={t.dysphagia} value={brainstem.dysphagiaLevel} labels={t.dysphagiaLevels} onChange={setBrainstemLevel('dysphagiaLevel')} />
-              <LevelSelect label={t.otherCranialNerves} value={brainstem.otherCranialNerves} labels={t.otherCranialNervesLevels} onChange={setBrainstemLevel('otherCranialNerves')} />
-            </div>
-
-            <div className="space-y-2">
-              {([
-                [t.facialSensibility, 'facialSensLeft', 'facialSensRight', [t.facialSensibility0, t.facialSensibility1, t.facialSensibility2, t.facialSensibility3, t.facialSensibility4]],
-                [t.facialSymmetry, 'facialSymLeft', 'facialSymRight', [t.facialSymmetry0, t.facialSymmetry1, t.facialSymmetry2, t.facialSymmetry3, t.facialSymmetry4]],
-                [t.hearing, 'hearingLeft', 'hearingRight', [t.hearing0, t.hearing1, t.hearing2, t.hearing3, t.hearing4]],
-              ] as const).map(([label, leftKey, rightKey, levels]) => (
-                <div key={leftKey} className="space-y-1">
-                  <div className="text-sm font-medium">{label}</div>
-                  <div className="flex gap-2">
-                    {([[t.leftAbbrev, leftKey], [t.rightAbbrev, rightKey]] as const).map(([side, key]) => (
-                      <div key={key} className="flex-1 min-w-0">
-                        <div className="text-xs text-gray-600 mb-1">{side}</div>
-                        <select className="w-full border rounded-lg p-1 text-sm" value={brainstem[key]} onChange={(e)=>setBrainstemLevel(key)(Number(e.target.value))}>
-                          {levels.map((l, i) => <option key={i} value={i}>{l}</option>)}
-                        </select>
-                      </div>
-                    ))}
-                  </div>
+              {/* V */}
+              <FSRow {...fsRowProps("V")}>
+                <div className="space-y-4">
+                  <Choice label={t.rightEyeAcuity} value={visual.rightEyeAcuity} options={acuityOptions} onChange={(v) => setVisual((prev) => ({ ...prev, rightEyeAcuity: v }))} />
+                  <Choice label={t.leftEyeAcuity} value={visual.leftEyeAcuity} options={acuityOptions} onChange={(v) => setVisual((prev) => ({ ...prev, leftEyeAcuity: v }))} />
                 </div>
-              ))}
-            </div>
-          </FSRow>
+                <div className="space-y-4">
+                  <Choice label={t.visualFieldDeficit} value={visual.visualFieldDeficit} options={visualFieldOptions} onChange={(v) => setVisual((prev) => ({ ...prev, visualFieldDeficit: v }))} />
+                  <Choice label={t.scotoma} value={visual.scotoma} options={levelOptions(t.scotomaLevels)} onChange={(v) => setVisual((prev) => ({ ...prev, scotoma: v as VisualForm["scotoma"] }))} />
+                  <Check label={t.discPallor} checked={visual.discPallor} onChange={(checked) => setVisual((prev) => ({ ...prev, discPallor: checked }))} />
+                </div>
+              </FSRow>
 
-          {/* P — Registry-style */}
-          <FSRow {...fsRowProps("P")}>
-            <div className="space-y-2">
-              <div className="text-sm font-medium">{t.upperLimbsMRC}</div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="text-left">
-                    <tr>
-                      <th className="py-1 pr-2">{t.movement}</th>
-                      <th className="py-1 pr-2">{t.rightAbbrev}</th>
-                      <th className="py-1 pr-2">{t.leftAbbrev}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {ARM_MUSCLES.map((m) => (
-                      <tr key={m} className="border-t">
-                        <td className="py-1 pr-2">{t.muscles[m]}</td>
-                        {(["R", "L"] as const).map((side) => (
-                          <td key={side} className="py-1 pr-2">
-                            <select className="border rounded-lg p-1" value={pyramidal[`${m}${side}`]} onChange={(e)=> setPyramidal(prev=> ({...prev, [`${m}${side}`]: Number(e.target.value)}))}>
-                              {[5,4,3,2,1,0].map(v=> <option key={v} value={v}>{v}</option>)}
-                            </select>
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <div className="text-sm font-medium">{t.lowerLimbsMRC}</div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="text-left">
-                    <tr>
-                      <th className="py-1 pr-2">{t.movement}</th>
-                      <th className="py-1 pr-2">{t.rightAbbrev}</th>
-                      <th className="py-1 pr-2">{t.leftAbbrev}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {LEG_MUSCLES.map((m) => (
-                      <tr key={m} className="border-t">
-                        <td className="py-1 pr-2">{t.muscles[m]}</td>
-                        {(["R", "L"] as const).map((side) => (
-                          <td key={side} className="py-1 pr-2">
-                            <select className="border rounded-lg p-1" value={pyramidal[`${m}${side}`]} onChange={(e)=> setPyramidal(prev=> ({...prev, [`${m}${side}`]: Number(e.target.value)}))}>
-                              {[5,4,3,2,1,0].map(v=> <option key={v} value={v}>{v}</option>)}
-                            </select>
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <div className="pt-2 space-y-2">
-                <div className="text-sm font-medium">{t.findings}</div>
-
-                {/* Lateralized findings with L/R checkboxes */}
-                {[
-                  {label: t.hyperreflexia, leftKey: 'hyperreflexiaLeft' as const, rightKey: 'hyperreflexiaRight' as const},
-                  {label: t.babinski, leftKey: 'babinskiLeft' as const, rightKey: 'babinskiRight' as const},
-                  {label: t.clonus, leftKey: 'clonusLeft' as const, rightKey: 'clonusRight' as const}
-                ].map(({label, leftKey, rightKey}) => (
-                  <div key={leftKey} className="flex items-center gap-2 text-sm">
-                    <span className="min-w-[100px]">{label}</span>
-                    <label className="flex items-center gap-1">
-                      <input
-                        type="checkbox"
-                        checked={pyramidal[leftKey]}
-                        onChange={(e)=> setPyramidal(prev=> ({...prev, [leftKey]: e.target.checked}))}
-                      />
-                      <span>{t.leftAbbrev}</span>
-                    </label>
-                    <label className="flex items-center gap-1">
-                      <input
-                        type="checkbox"
-                        checked={pyramidal[rightKey]}
-                        onChange={(e)=> setPyramidal(prev=> ({...prev, [rightKey]: e.target.checked}))}
-                      />
-                      <span>{t.rightAbbrev}</span>
-                    </label>
-                  </div>
-                ))}
-
-                {/* Non-lateralized findings */}
-                <label className="flex items-center gap-2 text-sm">
-                  <input type="checkbox" checked={pyramidal.spasticGait} onChange={(e)=> setPyramidal(prev=> ({...prev, spasticGait: e.target.checked}))} />
-                  <span>{t.spasticGait}</span>
-                </label>
-                <label className="flex items-center gap-2 text-sm">
-                  <input type="checkbox" checked={pyramidal.fatigability} onChange={(e)=> setPyramidal(prev=> ({...prev, fatigability: e.target.checked}))} />
-                  <span>{t.fatigability}</span>
-                </label>
-              </div>
-            </div>
-          </FSRow>
-
-          {/* C */}
-          <FSRow {...fsRowProps("C")}>
-            <div className="space-y-2">
-              <div className="space-y-1">
-                <div className="text-sm font-medium">{t.limbAtaxia}</div>
-                {([
-                  ['limbAtaxiaRightArm', t.rightArmAbbrev],
-                  ['limbAtaxiaLeftArm', t.leftArmAbbrev],
-                  ['limbAtaxiaRightLeg', t.rightLegAbbrev],
-                  ['limbAtaxiaLeftLeg', t.leftLegAbbrev],
-                ] as const).map(([key, abbrev]) => (
-                  <div key={key} className="flex items-center gap-2">
-                    <span className="text-xs text-gray-600 w-12 shrink-0">{abbrev}</span>
-                    <select className="flex-1 min-w-0 border rounded-lg p-1 text-sm" value={cerebellar[key]} onChange={(e)=>setCerebellarLevel(key)(Number(e.target.value))}>
-                      {t.limbAtaxiaLevels.map((l, i) => <option key={i} value={i}>{l}</option>)}
-                    </select>
-                  </div>
-                ))}
-              </div>
-              <LevelSelect label={t.headTremor} value={cerebellar.headTremor} labels={t.headTremorLevels} onChange={setCerebellarLevel('headTremor')} />
-              <LevelSelect label={t.otherCerebellar} value={cerebellar.otherCerebellar} labels={t.otherCerebellarLevels} onChange={setCerebellarLevel('otherCerebellar')} />
-            </div>
-            <div className="space-y-2">
-              <LevelSelect label={t.gaitAtaxia} value={cerebellar.gaitAtaxia} labels={t.gaitAtaxiaLevels} onChange={setCerebellarLevel('gaitAtaxia')} />
-              <LevelSelect label={t.truncalAtaxia} value={cerebellar.truncalAtaxia} labels={t.truncalAtaxiaLevels} onChange={setCerebellarLevel('truncalAtaxia')} />
-              <LevelSelect label={t.tandemWalking} value={cerebellar.tandemWalking} labels={t.tandemWalkingLevels} onChange={setCerebellarLevel('tandemWalking')} />
-              <LevelSelect label={t.romberg} value={cerebellar.romberg} labels={t.rombergLevels} onChange={setCerebellarLevel('romberg')} />
-              <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={cerebellar.inabilityCoordinatedMovements} onChange={(e)=>setCerebellar({ ...cerebellar, inabilityCoordinatedMovements: e.target.checked })}/>
-                {t.unableCoordMovements}
-              </label>
-              <div className="text-xs text-gray-600">{t.cerebellarNote}</div>
-            </div>
-          </FSRow>
-
-          {/* S — Registry-style */}
-          <FSRow {...fsRowProps("S")}>
-            <div className="space-y-2">
-              <div className="text-sm font-medium">{t.vibration}</div>
-              <div className="space-y-1">
-                <label className="text-sm">{t.severity}</label>
-                <select className="w-full border rounded-lg p-1 text-sm" value={sensory.vibSeverity} onChange={(e)=> {
-                  const newSeverity = e.target.value as Severity;
-                  setSensory({...sensory, vibSeverity: newSeverity, vibCount: newSeverity === 'normal' ? 0 : sensory.vibCount, vibRightArm: newSeverity === 'normal' ? false : sensory.vibRightArm, vibLeftArm: newSeverity === 'normal' ? false : sensory.vibLeftArm, vibRightLeg: newSeverity === 'normal' ? false : sensory.vibRightLeg, vibLeftLeg: newSeverity === 'normal' ? false : sensory.vibLeftLeg});
-                }}>
-                  <option value="normal">0 - {t.sensNormal}</option>
-                  <option value="mild">{t.vibOptions.mild}</option>
-                  <option value="moderate">{t.vibOptions.moderate}</option>
-                  <option value="marked">{t.vibOptions.marked}</option>
-                </select>
-              </div>
-              <div className="flex gap-2 flex-wrap text-sm">
-                <label className="flex items-center gap-1">
-                  <input type="checkbox" checked={sensory.vibRightArm} onChange={(e)=> {
-                    const updated = {...sensory, vibRightArm: e.target.checked};
-                    updated.vibCount = [updated.vibRightArm, updated.vibLeftArm, updated.vibRightLeg, updated.vibLeftLeg].filter(Boolean).length;
-                    setSensory(updated);
-                  }}/>
-                  <span>{t.rightArmAbbrev}</span>
-                </label>
-                <label className="flex items-center gap-1">
-                  <input type="checkbox" checked={sensory.vibLeftArm} onChange={(e)=> {
-                    const updated = {...sensory, vibLeftArm: e.target.checked};
-                    updated.vibCount = [updated.vibRightArm, updated.vibLeftArm, updated.vibRightLeg, updated.vibLeftLeg].filter(Boolean).length;
-                    setSensory(updated);
-                  }}/>
-                  <span>{t.leftArmAbbrev}</span>
-                </label>
-                <label className="flex items-center gap-1">
-                  <input type="checkbox" checked={sensory.vibRightLeg} onChange={(e)=> {
-                    const updated = {...sensory, vibRightLeg: e.target.checked};
-                    updated.vibCount = [updated.vibRightArm, updated.vibLeftArm, updated.vibRightLeg, updated.vibLeftLeg].filter(Boolean).length;
-                    setSensory(updated);
-                  }}/>
-                  <span>{t.rightLegAbbrev}</span>
-                </label>
-                <label className="flex items-center gap-1">
-                  <input type="checkbox" checked={sensory.vibLeftLeg} onChange={(e)=> {
-                    const updated = {...sensory, vibLeftLeg: e.target.checked};
-                    updated.vibCount = [updated.vibRightArm, updated.vibLeftArm, updated.vibRightLeg, updated.vibLeftLeg].filter(Boolean).length;
-                    setSensory(updated);
-                  }}/>
-                  <span>{t.leftLegAbbrev}</span>
-                </label>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <div className="text-sm font-medium">{t.painTouch}</div>
-              <div className="space-y-1">
-                <label className="text-sm">{t.severity}</label>
-                <select className="w-full border rounded-lg p-1 text-sm" value={sensory.ptSeverity} onChange={(e)=> {
-                  const newSeverity = e.target.value as Severity;
-                  setSensory({...sensory, ptSeverity: newSeverity, ptCount: newSeverity === 'normal' ? 0 : sensory.ptCount, ptRightArm: newSeverity === 'normal' ? false : sensory.ptRightArm, ptLeftArm: newSeverity === 'normal' ? false : sensory.ptLeftArm, ptRightLeg: newSeverity === 'normal' ? false : sensory.ptRightLeg, ptLeftLeg: newSeverity === 'normal' ? false : sensory.ptLeftLeg});
-                }}>
-                  <option value="normal">0 - {t.sensNormal}</option>
-                  <option value="signs">{t.ptOptions.signs}</option>
-                  <option value="mild">{t.ptOptions.mild}</option>
-                  <option value="moderate">{t.ptOptions.moderate}</option>
-                  <option value="marked">{t.ptOptions.marked}</option>
-                  <option value="absent">{t.ptOptions.absent}</option>
-                </select>
-              </div>
-              <div className="flex gap-2 flex-wrap text-sm">
-                <label className="flex items-center gap-1">
-                  <input type="checkbox" checked={sensory.ptRightArm} onChange={(e)=> {
-                    const updated = {...sensory, ptRightArm: e.target.checked};
-                    updated.ptCount = [updated.ptRightArm, updated.ptLeftArm, updated.ptRightLeg, updated.ptLeftLeg].filter(Boolean).length;
-                    setSensory(updated);
-                  }}/>
-                  <span>{t.rightArmAbbrev}</span>
-                </label>
-                <label className="flex items-center gap-1">
-                  <input type="checkbox" checked={sensory.ptLeftArm} onChange={(e)=> {
-                    const updated = {...sensory, ptLeftArm: e.target.checked};
-                    updated.ptCount = [updated.ptRightArm, updated.ptLeftArm, updated.ptRightLeg, updated.ptLeftLeg].filter(Boolean).length;
-                    setSensory(updated);
-                  }}/>
-                  <span>{t.leftArmAbbrev}</span>
-                </label>
-                <label className="flex items-center gap-1">
-                  <input type="checkbox" checked={sensory.ptRightLeg} onChange={(e)=> {
-                    const updated = {...sensory, ptRightLeg: e.target.checked};
-                    updated.ptCount = [updated.ptRightArm, updated.ptLeftArm, updated.ptRightLeg, updated.ptLeftLeg].filter(Boolean).length;
-                    setSensory(updated);
-                  }}/>
-                  <span>{t.rightLegAbbrev}</span>
-                </label>
-                <label className="flex items-center gap-1">
-                  <input type="checkbox" checked={sensory.ptLeftLeg} onChange={(e)=> {
-                    const updated = {...sensory, ptLeftLeg: e.target.checked};
-                    updated.ptCount = [updated.ptRightArm, updated.ptLeftArm, updated.ptRightLeg, updated.ptLeftLeg].filter(Boolean).length;
-                    setSensory(updated);
-                  }}/>
-                  <span>{t.leftLegAbbrev}</span>
-                </label>
-              </div>
-            </div>
-            <div className="space-y-2 md:col-span-2">
-              <div className="text-sm font-medium">{t.jointPosition}</div>
-              <div className="space-y-1">
-                <label className="text-sm">{t.severity}</label>
-                <select className="w-full border rounded-lg p-1 text-sm" value={sensory.jpSeverity} onChange={(e)=> {
-                  const newSeverity = e.target.value as Severity;
-                  setSensory({...sensory, jpSeverity: newSeverity, jpCount: newSeverity === 'normal' ? 0 : sensory.jpCount, jpRightArm: newSeverity === 'normal' ? false : sensory.jpRightArm, jpLeftArm: newSeverity === 'normal' ? false : sensory.jpLeftArm, jpRightLeg: newSeverity === 'normal' ? false : sensory.jpRightLeg, jpLeftLeg: newSeverity === 'normal' ? false : sensory.jpLeftLeg});
-                }}>
-                  <option value="normal">0 - {t.sensNormal}</option>
-                  <option value="mild">{t.jpOptions.mild}</option>
-                  <option value="moderate">{t.jpOptions.moderate}</option>
-                  <option value="marked">{t.jpOptions.marked}</option>
-                </select>
-              </div>
-              <div className="flex gap-2 flex-wrap text-sm">
-                <label className="flex items-center gap-1">
-                  <input type="checkbox" checked={sensory.jpRightArm} onChange={(e)=> {
-                    const updated = {...sensory, jpRightArm: e.target.checked};
-                    updated.jpCount = [updated.jpRightArm, updated.jpLeftArm, updated.jpRightLeg, updated.jpLeftLeg].filter(Boolean).length;
-                    setSensory(updated);
-                  }}/>
-                  <span>{t.rightArmAbbrev}</span>
-                </label>
-                <label className="flex items-center gap-1">
-                  <input type="checkbox" checked={sensory.jpLeftArm} onChange={(e)=> {
-                    const updated = {...sensory, jpLeftArm: e.target.checked};
-                    updated.jpCount = [updated.jpRightArm, updated.jpLeftArm, updated.jpRightLeg, updated.jpLeftLeg].filter(Boolean).length;
-                    setSensory(updated);
-                  }}/>
-                  <span>{t.leftArmAbbrev}</span>
-                </label>
-                <label className="flex items-center gap-1">
-                  <input type="checkbox" checked={sensory.jpRightLeg} onChange={(e)=> {
-                    const updated = {...sensory, jpRightLeg: e.target.checked};
-                    updated.jpCount = [updated.jpRightArm, updated.jpLeftArm, updated.jpRightLeg, updated.jpLeftLeg].filter(Boolean).length;
-                    setSensory(updated);
-                  }}/>
-                  <span>{t.rightLegAbbrev}</span>
-                </label>
-                <label className="flex items-center gap-1">
-                  <input type="checkbox" checked={sensory.jpLeftLeg} onChange={(e)=> {
-                    const updated = {...sensory, jpLeftLeg: e.target.checked};
-                    updated.jpCount = [updated.jpRightArm, updated.jpLeftArm, updated.jpRightLeg, updated.jpLeftLeg].filter(Boolean).length;
-                    setSensory(updated);
-                  }}/>
-                  <span>{t.leftLegAbbrev}</span>
-                </label>
-              </div>
-            </div>
-          </FSRow>
-
-          {/* BB */}
-          <FSRow {...fsRowProps("BB")}>
-            <div className="space-y-2">
-              <div className="text-sm font-semibold">{t.bladderSymptoms}</div>
-              <LevelSelect label={t.urinaryHesitancy} value={bb.urinaryHesitancy} labels={t.urinaryHesitancyLevels} onChange={setBBLevel('urinaryHesitancy')} />
-              <LevelSelect label={t.urinaryUrgency} value={bb.urinaryUrgency} labels={t.urinaryUrgencyLevels} onChange={setBBLevel('urinaryUrgency')} />
-              <div className="space-y-1">
-                <div className="text-sm font-medium">{t.catheterisation}</div>
-                <select className="w-full border rounded-lg p-1 text-sm" value={bb.catheterisation} onChange={(e)=>setBB({ ...bb, catheterisation: e.target.value as CatheterisationLevel })}>
-                  {(Object.keys(t.catheterisationLevels) as CatheterisationLevel[]).map((k) => <option key={k} value={k}>{t.catheterisationLevels[k]}</option>)}
-                </select>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <div className="text-sm font-semibold">{t.bowelSymptoms}</div>
-              <LevelSelect label={t.bowelDysfunction} value={bb.bowelDysfunction} labels={t.bowelDysfunctionLevels} onChange={setBBLevel('bowelDysfunction')} />
-            </div>
-          </FSRow>
-
-          {/* M */}
-          <FSRow {...fsRowProps("M")}>
-            <div className="space-y-1">
-              <div className="text-sm font-medium">{t.cognitiveFunction}</div>
-              {cognitionOptions.map(([key, label]) => (
-                <label key={key} className="flex items-center gap-2 text-sm"><input type="checkbox" checked={mental[key]} onChange={(e)=>setExclusive(cognitionOptions, key, e.target.checked)}/>{label}</label>
-              ))}
-            </div>
-            <div className="space-y-1">
-              <div className="text-sm font-medium">{t.fatigue}</div>
-              {fatigueOptions.map(([key, label]) => (
-                <label key={key} className="flex items-center gap-2 text-sm"><input type="checkbox" checked={mental[key]} onChange={(e)=>setExclusive(fatigueOptions, key, e.target.checked)}/>{label}</label>
-              ))}
-              <div className="text-xs text-gray-600 pt-1">{t.cerebralNote}</div>
-            </div>
-          </FSRow>
-
-          {/* Ambulation + Result + Copy */}
-          <section className="grid gap-6 md:grid-cols-2">
-            <section id="ambulation" className="space-y-3 p-3 rounded-2xl bg-white border scroll-mt-28">
-              <h2 className="text-xl font-semibold">{t.ambulation}</h2>
-              <div className="space-y-2">
-                <label className="block text-sm font-medium">{t.assistanceReq}</label>
-                <div className="grid gap-2">
-                  {assistanceLevels.map((a) => (
-                    <label key={a.id} className="flex items-center gap-2">
-                      <input type="radio" name="assist" value={a.id} checked={assistance === a.id} onChange={(e) => setAssistance((e.target.value) as AssistanceId)} />
-                      <span className="text-sm">{a.label}</span>
-                    </label>
+              {/* BS */}
+              <FSRow {...fsRowProps("BS")}>
+                <div className="space-y-4">
+                  <Choice label={t.eyeMotility} value={brainstem.eyeMotilityLevel} options={levelOptions([t.eyeMotility0, t.eyeMotility1, t.eyeMotility2, t.eyeMotility3, t.eyeMotility4])} onChange={setBrainstemLevel('eyeMotilityLevel')} />
+                  <Choice label={t.nystagmus} value={brainstem.nystagmus} options={nystagmusOptions} onChange={(v) => setBrainstem((prev) => ({ ...prev, nystagmus: v }))} />
+                  <Check label={t.ino} checked={brainstem.ino} onChange={(checked) => setBrainstem((prev) => ({ ...prev, ino: checked }))} />
+                  <Choice label={t.dysarthria} value={brainstem.dysarthriaLevel} options={levelOptions(t.dysarthriaLevels)} onChange={setBrainstemLevel('dysarthriaLevel')} />
+                  <Choice label={t.dysphagia} value={brainstem.dysphagiaLevel} options={levelOptions(t.dysphagiaLevels)} onChange={setBrainstemLevel('dysphagiaLevel')} />
+                  <Choice label={t.otherCranialNerves} value={brainstem.otherCranialNerves} options={levelOptions(t.otherCranialNervesLevels)} onChange={setBrainstemLevel('otherCranialNerves')} />
+                </div>
+                <div className="space-y-4">
+                  {([
+                    [t.facialSensibility, 'facialSensRight', 'facialSensLeft', [t.facialSensibility0, t.facialSensibility1, t.facialSensibility2, t.facialSensibility3, t.facialSensibility4]],
+                    [t.facialSymmetry, 'facialSymRight', 'facialSymLeft', [t.facialSymmetry0, t.facialSymmetry1, t.facialSymmetry2, t.facialSymmetry3, t.facialSymmetry4]],
+                    [t.hearing, 'hearingRight', 'hearingLeft', [t.hearing0, t.hearing1, t.hearing2, t.hearing3, t.hearing4]],
+                  ] as const).map(([label, rightKey, leftKey, levels]) => (
+                    <React.Fragment key={rightKey}>
+                      {multiChoice(label, [
+                        [t.rightAbbrev, brainstem[rightKey], setBrainstemLevel(rightKey)],
+                        [t.leftAbbrev, brainstem[leftKey], setBrainstemLevel(leftKey)],
+                      ], levels)}
+                    </React.Fragment>
                   ))}
                 </div>
-                {assistance === "none" && (
-                  <div className="space-y-1">
-                    <label className="block text-sm font-medium">{t.maxWalkDist}</label>
-                    <input type="number" className="w-full rounded-xl border p-2" value={distance} min={0} max={2000} step={10} onChange={(e) => setDistance(e.target.value)} />
-                    <div className="text-xs opacity-70">
-                      {t.thresholds}
+              </FSRow>
+
+              {/* P */}
+              <FSRow {...fsRowProps("P")}>
+                <div className="md:col-span-2 grid 2xl:grid-cols-2 gap-x-8 gap-y-4">
+                  {strengthTable(t.upperLimbsMRC, ARM_MUSCLES)}
+                  {strengthTable(t.lowerLimbsMRC, LEG_MUSCLES)}
+                </div>
+                <div className="space-y-3">
+                  <div className="text-sm font-medium">{t.findings}</div>
+                  {([
+                    [t.hyperreflexia, 'hyperreflexiaRight', 'hyperreflexiaLeft'],
+                    [t.babinski, 'babinskiRight', 'babinskiLeft'],
+                    [t.clonus, 'clonusRight', 'clonusLeft'],
+                  ] as const).map(([label, rightKey, leftKey]) => (
+                    <Toggles
+                      key={rightKey}
+                      label={label}
+                      items={[
+                        { key: rightKey, short: t.rightAbbrev, checked: pyramidal[rightKey] },
+                        { key: leftKey, short: t.leftAbbrev, checked: pyramidal[leftKey] },
+                      ]}
+                      onToggle={(key, checked) => setPyramidal((prev) => ({ ...prev, [key]: checked }))}
+                    />
+                  ))}
+                </div>
+                <div className="space-y-3 md:pt-8">
+                  <Check label={t.spasticGait} checked={pyramidal.spasticGait} onChange={(checked) => setPyramidal((prev) => ({ ...prev, spasticGait: checked }))} />
+                  <Check label={t.fatigability} checked={pyramidal.fatigability} onChange={(checked) => setPyramidal((prev) => ({ ...prev, fatigability: checked }))} />
+                </div>
+              </FSRow>
+
+              {/* C */}
+              <FSRow {...fsRowProps("C")}>
+                <div className="space-y-4">
+                  {multiChoice(t.limbAtaxia, LIMBS.map(([limb, abbrev]) => {
+                    const key = `limbAtaxia${limb}` as const;
+                    return [abbrev, cerebellar[key], setCerebellarLevel(key)] as const;
+                  }), t.limbAtaxiaLevels)}
+                  <Choice label={t.headTremor} value={cerebellar.headTremor} options={levelOptions(t.headTremorLevels)} onChange={setCerebellarLevel('headTremor')} />
+                  <Choice label={t.otherCerebellar} value={cerebellar.otherCerebellar} options={levelOptions(t.otherCerebellarLevels)} onChange={setCerebellarLevel('otherCerebellar')} />
+                </div>
+                <div className="space-y-4">
+                  <Choice label={t.gaitAtaxia} value={cerebellar.gaitAtaxia} options={levelOptions(t.gaitAtaxiaLevels)} onChange={setCerebellarLevel('gaitAtaxia')} />
+                  <Choice label={t.truncalAtaxia} value={cerebellar.truncalAtaxia} options={levelOptions(t.truncalAtaxiaLevels)} onChange={setCerebellarLevel('truncalAtaxia')} />
+                  <Choice label={t.tandemWalking} value={cerebellar.tandemWalking} options={levelOptions(t.tandemWalkingLevels)} onChange={setCerebellarLevel('tandemWalking')} />
+                  <Choice label={t.romberg} value={cerebellar.romberg} options={levelOptions(t.rombergLevels)} onChange={setCerebellarLevel('romberg')} />
+                  <Check label={t.unableCoordMovements} checked={cerebellar.inabilityCoordinatedMovements} onChange={(checked) => setCerebellar((prev) => ({ ...prev, inabilityCoordinatedMovements: checked }))} />
+                  <div className="text-xs text-gray-600">{t.cerebellarNote}</div>
+                </div>
+              </FSRow>
+
+              {/* S */}
+              <FSRow {...fsRowProps("S")}>
+                {sensoryModalities.map(({ prefix, label, options }) => {
+                  const severity = sensoryField(prefix, "Severity") as Severity;
+                  const count = sensoryField(prefix, "Count") as number;
+                  return (
+                    <div key={prefix} className={`space-y-2 ${prefix === "jp" ? "md:col-span-2" : ""}`}>
+                      <Choice
+                        label={label}
+                        value={severity}
+                        options={[{ value: "normal", short: "0" }, ...options]}
+                        onChange={(v) => setSensorySeverity(prefix, v)}
+                      />
+                      <Toggles
+                        disabled={severity === "normal"}
+                        items={LIMBS.map(([limb, abbrev]) => ({ key: limb, short: abbrev, checked: sensoryField(prefix, limb) as boolean }))}
+                        onToggle={(limb, checked) => setSensoryLimb(prefix, limb, checked)}
+                      />
+                      {severity !== "normal" && count === 0 && <div className="text-xs text-amber-800">{t.warnSensoryNoLimbs}</div>}
                     </div>
-                    {(parsedDistance === null || parsedDistance >= 500) && (
-                      <label className="flex items-start gap-2 text-sm pt-1">
-                        <input type="checkbox" className="mt-1" checked={ambulationRestricted} onChange={(e) => setAmbulationRestricted(e.target.checked)} />
-                        <span>{t.ambulationRestricted}</span>
-                      </label>
-                    )}
-                  </div>
+                  );
+                })}
+              </FSRow>
+
+              {/* BB */}
+              <FSRow {...fsRowProps("BB")}>
+                <div className="space-y-4">
+                  <div className="text-sm font-semibold">{t.bladderSymptoms}</div>
+                  <Choice label={t.urinaryHesitancy} value={bb.urinaryHesitancy} options={levelOptions(t.urinaryHesitancyLevels)} onChange={setBBLevel('urinaryHesitancy')} />
+                  <Choice label={t.urinaryUrgency} value={bb.urinaryUrgency} options={levelOptions(t.urinaryUrgencyLevels)} onChange={setBBLevel('urinaryUrgency')} />
+                  <Choice label={t.catheterisation} value={bb.catheterisation} options={catheterisationOptions} onChange={(v) => setBB((prev) => ({ ...prev, catheterisation: v }))} />
+                </div>
+                <div className="space-y-4">
+                  <div className="text-sm font-semibold">{t.bowelSymptoms}</div>
+                  <Choice label={t.bowelDysfunction} value={bb.bowelDysfunction} options={levelOptions(t.bowelDysfunctionLevels)} onChange={setBBLevel('bowelDysfunction')} />
+                </div>
+              </FSRow>
+
+              {/* M */}
+              <FSRow {...fsRowProps("M")}>
+                <Choice label={t.cognitiveFunction} value={levelOf(cognitionKeys)} options={cognitionOptions} onChange={setLevel(cognitionKeys)} />
+                <div className="space-y-2">
+                  <Choice label={t.fatigue} value={levelOf(fatigueKeys)} options={fatigueOptions} onChange={setLevel(fatigueKeys)} />
+                  <div className="text-xs text-gray-600">{t.cerebralNote}</div>
+                </div>
+              </FSRow>
+
+              {/* Ambulation */}
+              <section id="ambulation" className="space-y-3 p-3 md:p-4 rounded-xl bg-white border scroll-mt-36 lg:scroll-mt-4">
+                <div className="flex items-center gap-3">
+                  <span className={`inline-flex items-center justify-center min-w-9 h-9 rounded-lg text-lg font-bold tabular-nums ${result.ambulation ? 'bg-blue-100 text-blue-900' : 'bg-gray-100 text-gray-500'}`}>
+                    {result.ambulation?.score ?? 0}
+                  </span>
+                  <h2 className="font-semibold">{t.ambulation}</h2>
+                </div>
+                <div className="grid md:grid-cols-2 gap-x-6 gap-y-4">
+                  <fieldset className="space-y-1">
+                    <legend className="text-sm font-medium mb-1">{t.assistanceReq}</legend>
+                    {assistanceLevels.map((a) => {
+                      const selected = assistance === a.id;
+                      return (
+                        <label key={a.id} className={`flex items-start gap-2 rounded-lg px-2 py-1 cursor-pointer ${selected ? (a.id === 'none' ? 'bg-gray-100 font-medium' : 'bg-blue-50 ring-1 ring-blue-200 font-medium text-blue-950') : 'hover:bg-gray-50'}`}>
+                          <input type="radio" className="mt-1" name="assist" value={a.id} checked={selected} onChange={(e) => setAssistance(e.target.value as AssistanceId)} />
+                          <span className="text-sm">{a.label}</span>
+                        </label>
+                      );
+                    })}
+                  </fieldset>
+                  {assistance === "none" && (
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium" htmlFor="walking-distance">{t.maxWalkDist}</label>
+                      <input id="walking-distance" type="number" inputMode="numeric" className={`w-full rounded-xl border p-2 ${parsedDistance !== null && parsedDistance < 500 ? 'border-blue-300 bg-blue-50' : ''}`} value={distance} min={0} max={2000} step={10} onChange={(e) => setDistance(e.target.value)} />
+                      <div className="text-xs opacity-70">{t.thresholds}</div>
+                      {(parsedDistance === null || parsedDistance >= 500) && (
+                        <Check label={t.ambulationRestricted} checked={ambulationRestricted} onChange={setAmbulationRestricted} />
+                      )}
+                    </div>
+                  )}
+                </div>
+              </section>
+
+              {/* Results (narrow screens) */}
+              <div className="lg:hidden">{resultPanel}</div>
+
+              {/* Compare with previous visit */}
+              <section className="p-4 rounded-xl bg-white border space-y-3">
+                <h2 className="font-semibold">{t.compareTitle}</h2>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={previousInput}
+                    onChange={(e) => setPreviousInput(e.target.value)}
+                    placeholder={t.comparePaste}
+                    className="flex-1 min-w-0 px-2 py-1 text-xs font-mono bg-white border border-gray-300 rounded"
+                  />
+                  {previousInput && (
+                    <button onClick={() => setPreviousInput('')} className="px-3 py-1 text-xs bg-white border border-gray-300 rounded hover:bg-gray-100">{t.compareClear}</button>
+                  )}
+                </div>
+                {previousInput.trim() !== '' && !previousAssessment && <div className="text-xs text-red-600">{t.restoreError}</div>}
+                {previousAssessment && change && (
+                  <>
+                    <div className={`text-sm rounded-lg p-2 ${changeClass}`}>
+                      {(change.status === 'worsening' ? t.compareWorsening : change.status === 'improvement' ? t.compareImprovement : t.compareStable)
+                        .replace('{threshold}', change.threshold.toFixed(1))
+                        .replace('{previous}', previousAssessment.result.edss.toFixed(1))}
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="text-sm border-collapse">
+                        <thead>
+                          <tr className="text-left">
+                            <th className="py-1 pr-4"></th>
+                            <th className="py-1 pr-4">{t.previous}</th>
+                            <th className="py-1 pr-4">{t.current}</th>
+                            <th className="py-1 pr-4">{t.change}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {[
+                            { label: 'EDSS', prev: previousAssessment.result.edss, curr: edss, decimals: 1 },
+                            ...FS_KEYS.map((k) => ({ label: fsMeta[k].label, prev: previousAssessment.fs[k], curr: fs[k], decimals: 0 })),
+                            { label: t.ambulationScore, prev: previousAssessment.result.ambulation?.score ?? 0, curr: result.ambulation?.score ?? 0, decimals: 0 },
+                          ].map((row) => (
+                            <tr key={row.label} className="border-t">
+                              <td className="py-1 pr-4">{row.label}</td>
+                              <td className="py-1 pr-4 tabular-nums">{row.prev.toFixed(row.decimals)}</td>
+                              <td className="py-1 pr-4 tabular-nums">{row.curr.toFixed(row.decimals)}</td>
+                              <td className={`py-1 pr-4 tabular-nums ${row.curr > row.prev ? 'text-red-700 font-semibold' : row.curr < row.prev ? 'text-green-700 font-semibold' : 'opacity-50'}`}>
+                                {row.curr === row.prev ? '–' : row.decimals ? signed(row.curr - row.prev) : `${row.curr > row.prev ? '+' : '−'}${Math.abs(row.curr - row.prev)}`}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="text-xs text-gray-600">{t.compareRescoredNote}</div>
+                  </>
                 )}
-              </div>
-            </section>
+              </section>
 
-            <section className="p-4 md:p-6 rounded-2xl bg-white shadow border">
-              <div className="flex items-baseline gap-3">
-                <div className="text-5xl font-black">{edss.toFixed(1)}</div>
-                <div className="text-sm uppercase tracking-wide opacity-60">EDSS</div>
-              </div>
-              <div className="mt-2 text-sm opacity-80">{rationale}</div>
-              <div className="mt-4 text-xs opacity-70">
-                <div>{t.rawFS}: {countFS(0)}×0, {countFS(1)}×1, {countFS(2)}×2, {countFS(3)}×3, {countFS(4)}×4, {countFS(5)}×5, {countFS(6)}×6</div>
-                <div className="mt-1">{t.correctedFS}: {countCorrectedFS(0)}×0, {countCorrectedFS(1)}×1, {countCorrectedFS(2)}×2, {countCorrectedFS(3)}×3, {countCorrectedFS(4)}×4, {countCorrectedFS(5)}×5, {countCorrectedFS(6)}×6</div>
-              </div>
-
-              <div className="mt-6 p-3 rounded-xl border bg-gray-50">
-                <div className="text-xs font-semibold mb-2">{t.quickSummary}</div>
-                <pre className="whitespace-pre-wrap text-xs">{summary}</pre>
-                <div className="flex gap-2 mt-2">
-                  <button onClick={copySummary} className="px-3 py-2 rounded-xl border text-sm hover:bg-gray-100">{copied ? t.copied : t.copySummary}</button>
-                  <button onClick={() => setShowExplainModal(true)} className="px-3 py-2 rounded-xl border text-sm hover:bg-blue-50 hover:border-blue-300">{t.explainEDSS}</button>
-                </div>
-              </div>
-
-              {warnings.length > 0 && (
-                <div className="mt-4 p-3 rounded-xl border border-amber-300 bg-amber-50">
-                  <div className="text-xs font-semibold mb-2 text-amber-900">{t.warnings}</div>
-                  <div className="space-y-2">
-                    {warnings.map((warning, idx) => (
-                      <div key={idx} className={`text-xs p-2 rounded-lg ${warning.type === 'warning' ? 'bg-amber-100 text-amber-900' : 'bg-blue-100 text-blue-900'}`}>
-                        <span className="font-semibold">{warning.type === 'warning' ? '⚠️' : 'ℹ️'}</span> {warning.message}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div className="mt-4 p-3 rounded-xl border bg-gray-50">
-                <div className="text-xs font-semibold mb-2">{t.fullExamText}</div>
-                <pre className="whitespace-pre-wrap text-xs">{examinationText}</pre>
-                <button onClick={copyExamination} className="mt-2 px-3 py-2 rounded-xl border text-sm hover:bg-gray-100">{copiedExam ? t.copied : t.copyExamText}</button>
-              </div>
-            </section>
-
-            {/* State Save/Restore Section */}
-            <section className="mt-8 pt-6 border-t border-gray-200">
-              <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+              {/* State Save/Restore */}
+              <section className="p-4 rounded-xl bg-gray-100 space-y-3">
                 <div className="space-y-2">
                   <div className="text-xs text-gray-500">{t.formStateString}</div>
                   <div className="flex gap-2">
                     <textarea
                       readOnly
                       value={stateString}
-                      className="flex-1 px-2 py-1 text-xs font-mono bg-white border border-gray-300 rounded resize-none"
+                      className="flex-1 min-w-0 px-2 py-1 text-xs font-mono bg-white border border-gray-300 rounded resize-none"
                       rows={1}
                       style={{ minHeight: '32px' }}
                     />
-                    <button
-                      onClick={copyState}
-                      className="px-3 py-1 text-xs bg-white border border-gray-300 rounded hover:bg-gray-100 whitespace-nowrap"
-                    >
+                    <button onClick={copyState} className="px-3 py-1 text-xs bg-white border border-gray-300 rounded hover:bg-gray-100 whitespace-nowrap">
                       {copiedState ? t.copied : t.copyButton}
                     </button>
                   </div>
                 </div>
-
                 <div className="space-y-2">
                   <div className="text-xs text-gray-500">{t.restoreFromString}</div>
                   <div className="flex gap-2">
@@ -1107,78 +989,22 @@ export default function App() {
                       value={restoreInput}
                       onChange={(e) => setRestoreInput(e.target.value)}
                       placeholder={t.pasteHere}
-                      className="flex-1 px-2 py-1 text-xs font-mono bg-white border border-gray-300 rounded"
+                      className="flex-1 min-w-0 px-2 py-1 text-xs font-mono bg-white border border-gray-300 rounded"
                     />
-                    <button
-                      onClick={restoreState}
-                      className="px-3 py-1 text-xs bg-white border border-gray-300 rounded hover:bg-gray-100 whitespace-nowrap"
-                    >
+                    <button onClick={restoreState} className="px-3 py-1 text-xs bg-white border border-gray-300 rounded hover:bg-gray-100 whitespace-nowrap">
                       {t.restoreButton}
                     </button>
                   </div>
-                  {restoreError && (
-                    <div className="text-xs text-red-600">{restoreError}</div>
-                  )}
+                  {restoreError && <div className="text-xs text-red-600">{restoreError}</div>}
                 </div>
-              </div>
-            </section>
-          </section>
+              </section>
+            </main>
 
-          {/* Compare with previous visit */}
-          <section className="p-4 rounded-2xl bg-white border space-y-3">
-            <h2 className="text-xl font-semibold">{t.compareTitle}</h2>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={previousInput}
-                onChange={(e) => setPreviousInput(e.target.value)}
-                placeholder={t.comparePaste}
-                className="flex-1 min-w-0 px-2 py-1 text-xs font-mono bg-white border border-gray-300 rounded"
-              />
-              {previousInput && (
-                <button onClick={() => setPreviousInput('')} className="px-3 py-1 text-xs bg-white border border-gray-300 rounded hover:bg-gray-100">{t.compareClear}</button>
-              )}
-            </div>
-            {previousInput.trim() !== '' && !previousAssessment && <div className="text-xs text-red-600">{t.restoreError}</div>}
-            {previousAssessment && change && (
-              <>
-                <div className={`text-sm rounded-lg p-2 ${changeClass}`}>
-                  {(change.status === 'worsening' ? t.compareWorsening : change.status === 'improvement' ? t.compareImprovement : t.compareStable)
-                    .replace('{threshold}', change.threshold.toFixed(1))
-                    .replace('{previous}', previousAssessment.result.edss.toFixed(1))}
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="text-sm border-collapse">
-                    <thead>
-                      <tr className="text-left">
-                        <th className="py-1 pr-4"></th>
-                        <th className="py-1 pr-4">{t.previous}</th>
-                        <th className="py-1 pr-4">{t.current}</th>
-                        <th className="py-1 pr-4">{t.change}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {[
-                        { label: 'EDSS', prev: previousAssessment.result.edss, curr: edss, decimals: 1 },
-                        ...FS_KEYS.map((k) => ({ label: fsMeta[k].label, prev: previousAssessment.fs[k], curr: fs[k], decimals: 0 })),
-                        { label: t.ambulationScore, prev: previousAssessment.result.ambulation?.score ?? 0, curr: result.ambulation?.score ?? 0, decimals: 0 },
-                      ].map((row) => (
-                        <tr key={row.label} className="border-t">
-                          <td className="py-1 pr-4">{row.label}</td>
-                          <td className="py-1 pr-4 tabular-nums">{row.prev.toFixed(row.decimals)}</td>
-                          <td className="py-1 pr-4 tabular-nums">{row.curr.toFixed(row.decimals)}</td>
-                          <td className={`py-1 pr-4 tabular-nums ${row.curr > row.prev ? 'text-red-700 font-semibold' : row.curr < row.prev ? 'text-green-700 font-semibold' : 'opacity-50'}`}>
-                            {row.curr === row.prev ? '–' : row.decimals ? signed(row.curr - row.prev) : `${row.curr > row.prev ? '+' : '−'}${Math.abs(row.curr - row.prev)}`}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                <div className="text-xs text-gray-600">{t.compareRescoredNote}</div>
-              </>
-            )}
-          </section>
+            {/* Results (wide screens) */}
+            <aside className="hidden lg:block sticky top-4 max-h-[calc(100vh-2rem)] overflow-y-auto pb-4">
+              {resultPanel}
+            </aside>
+          </div>
         </div>
       </div>
 

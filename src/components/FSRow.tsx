@@ -9,19 +9,39 @@ interface FSRowProps {
   suggested: number;
   overridden: boolean;
   onOverride: (value: number | null) => void;
-  labels: { override: string; auto: string; manual: string; reset: string };
+  // true when every finding in the section is at its default and no override is set
+  isNormal: boolean;
+  onNormal: () => void;
+  labels: { override: string; auto: string; manual: string; reset: string; allNormal: string };
   children: React.ReactNode;
 }
 
-export function FSRow({ code, meta, value, suggested, overridden, onOverride, labels, children }: FSRowProps) {
+const badgeClass = (value: number) =>
+  value === 0 ? "bg-gray-100 text-gray-500"
+    : value === 1 ? "bg-blue-100 text-blue-900"
+    : value === 2 ? "bg-yellow-100 text-yellow-900"
+    : value === 3 ? "bg-orange-100 text-orange-900"
+    : "bg-red-100 text-red-900";
+
+export function FSRow({ code, meta, value, suggested, overridden, onOverride, isNormal, onNormal, labels, children }: FSRowProps) {
   return (
-    <div id={`fs-${code}`} className={`space-y-2 p-3 rounded-xl border bg-white scroll-mt-28 ${overridden ? "border-amber-400" : ""}`}>
+    <section id={`fs-${code}`} className={`space-y-3 p-3 md:p-4 rounded-xl border bg-white scroll-mt-36 lg:scroll-mt-4 ${overridden ? "border-amber-400" : ""}`}>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <div className="font-semibold">{meta.label}</div>
-          <div className="text-xs opacity-60">{meta.help}</div>
+        <div className="flex items-center gap-3">
+          <span className={`inline-flex items-center justify-center min-w-9 h-9 rounded-lg text-lg font-bold tabular-nums ${badgeClass(value)}`} aria-label={`FS ${value}`}>
+            {value}
+          </span>
+          <div>
+            <h2 className="font-semibold">{meta.label}</h2>
+            <div className="text-xs opacity-60">{meta.help}</div>
+          </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {!isNormal && (
+            <button type="button" onClick={onNormal} className="text-xs px-2 py-1 rounded-lg border bg-white hover:bg-gray-100">
+              {labels.allNormal}
+            </button>
+          )}
           {overridden && (
             <>
               <span className="text-xs text-amber-800 bg-amber-100 rounded-lg px-2 py-1">{labels.manual.replace("{suggested}", String(suggested))}</span>
@@ -42,7 +62,7 @@ export function FSRow({ code, meta, value, suggested, overridden, onOverride, la
           </select>
         </div>
       </div>
-      <div className="grid md:grid-cols-2 gap-3">{children}</div>
-    </div>
+      <div className="grid md:grid-cols-2 gap-x-6 gap-y-4">{children}</div>
+    </section>
   );
 }
