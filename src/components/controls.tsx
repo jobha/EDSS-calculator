@@ -18,7 +18,8 @@ export function levelOptions(labels: readonly string[]): ChoiceOption<number>[] 
 }
 
 export const highlight = (active: boolean) =>
-  `rounded-lg p-1.5 -m-1.5 ring-1 ${active ? "bg-blue-50 ring-blue-200" : "ring-transparent"}`;
+  // Horizontal negative margin only: a vertical one would cancel the spacing between stacked fields
+  `rounded-lg p-1.5 -mx-1.5 ring-1 ${active ? "bg-blue-50 ring-blue-200" : "ring-transparent"}`;
 
 const buttonClass = (active: boolean, abnormal: boolean, compact: boolean) => [
   "rounded-md border tabular-nums transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-600",

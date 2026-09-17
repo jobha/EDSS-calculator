@@ -11,6 +11,7 @@ import { ResultPanel, StickyResultBar } from "./components/ResultPanel";
 import { CompareSection } from "./components/CompareSection";
 import { StateTransfer } from "./components/StateTransfer";
 import { ExplainModal } from "./components/ExplainModal";
+import { PrintSheet } from "./components/PrintSheet";
 import { VisualSection } from "./components/sections/VisualSection";
 import { BrainstemSection } from "./components/sections/BrainstemSection";
 import { PyramidalSection } from "./components/sections/PyramidalSection";
@@ -162,7 +163,7 @@ export default function App() {
 
   return (
     <>
-      <div className="min-h-screen w-full bg-gray-50 px-4 py-4 md:px-6 md:py-6">
+      <div className="min-h-screen w-full bg-gray-50 px-4 py-4 md:px-6 md:py-6 print:hidden">
         <div className="max-w-7xl mx-auto space-y-4">
           <header className="flex flex-wrap items-center justify-between gap-3">
             <h1 className="text-2xl md:text-3xl font-bold">{t.title}</h1>
@@ -219,6 +220,8 @@ export default function App() {
           </div>
         </div>
       </div>
+
+      <PrintSheet state={formState} assessment={assessment} t={t} />
 
       {showExplainModal && <ExplainModal assessment={assessment} onClose={() => setShowExplainModal(false)} t={t} />}
     </>

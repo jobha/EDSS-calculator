@@ -138,9 +138,9 @@ export function suggestC(fs: CerebellarForm): number {
 }
 
 // Neurostatus subscore for each sensory modality
-const SUPERFICIAL_LEVEL: Record<Severity, number> = { normal: 0, signs: 1, mild: 2, moderate: 3, marked: 4, absent: 5 };
+export const SUPERFICIAL_LEVEL: Record<Severity, number> = { normal: 0, signs: 1, mild: 2, moderate: 3, marked: 4, absent: 5 };
 // Vibration and position sense: 1 mild, 2 moderate, 3 marked (complete loss)
-const PROPRIOCEPTIVE_LEVEL: Record<Severity, number> = { normal: 0, signs: 1, mild: 1, moderate: 2, marked: 3, absent: 3 };
+export const PROPRIOCEPTIVE_LEVEL: Record<Severity, number> = { normal: 0, signs: 1, mild: 1, moderate: 2, marked: 3, absent: 3 };
 
 // Sensory functional system scoring
 export function suggestS(fs: SensoryForm): number {
