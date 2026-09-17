@@ -5,7 +5,9 @@
 import LZString from "lz-string";
 import type { AssistanceId } from "../types/edss";
 import type { VisualForm, BrainstemForm, PyramidalForm, CerebellarForm, SensoryForm, BowelBladderForm, MentalForm, MuscleGroup } from "../types/forms";
-import { ARM_MUSCLES, LEG_MUSCLES } from "../types/forms";
+import { ARM_MUSCLES, LEG_MUSCLES, PYRAMIDAL_SIDED_DEFAULTS, REFLEXES } from "../types/forms";
+
+const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 import { FS_KEYS, FS_MAX, type FSScores } from "./assessment";
 
 export type FormState = {
@@ -19,6 +21,10 @@ export type FormState = {
   assistance: AssistanceId;
   walkingDistance: string;
   ambulationRestricted: boolean;
+  // Documented on the scoring sheet; the EDSS uses walkingDistance
+  reportedDistance: string;
+  reportedTime: string;
+  measuredDistance: string;
   // Manually overridden FS scores
   overrides: Partial<FSScores>;
 };
@@ -26,18 +32,28 @@ export type FormState = {
 export const DEFAULT_STATE: FormState = {
   visual: { leftEyeAcuity: "1.0", rightEyeAcuity: "1.0", visualFieldDeficit: "none", scotoma: 0, discPallor: false },
   brainstem: { eyeMotilityLevel: 0, nystagmus: "none", ino: false, facialSensLeft: 0, facialSensRight: 0, facialSymLeft: 0, facialSymRight: 0, hearingLeft: 0, hearingRight: 0, dysarthriaLevel: 0, dysphagiaLevel: 0, otherCranialNerves: 0 },
-  pyramidal: { ...Object.fromEntries([...ARM_MUSCLES, ...LEG_MUSCLES].flatMap((m) => [[`${m}R`, 5], [`${m}L`, 5]])) as { [K in `${MuscleGroup}${"R" | "L"}`]: number }, hyperreflexiaLeft:false, hyperreflexiaRight:false, babinskiLeft:false, babinskiRight:false, clonusLeft:false, clonusRight:false, spasticGait:false, fatigability:false },
+  pyramidal: {
+    ...Object.fromEntries([...ARM_MUSCLES, ...LEG_MUSCLES].flatMap((m) => [[`${m}R`, 5], [`${m}L`, 5]])),
+    ...Object.fromEntries(REFLEXES.flatMap((r) => [[`reflex${capitalize(r)}R`, 2], [`reflex${capitalize(r)}L`, 2]])),
+    ...Object.fromEntries(Object.entries(PYRAMIDAL_SIDED_DEFAULTS).flatMap(([item, v]) => [[`${item}R`, v], [`${item}L`, v]])),
+    legLiftDegreesR: "", legLiftDegreesL: "",
+    gaitSpasticity: 0,
+    overallMotorPerformance: 0,
+  } as PyramidalForm,
   cerebellar: { headTremor: 0, truncalAtaxia: 0, limbAtaxiaRightArm: 0, limbAtaxiaLeftArm: 0, limbAtaxiaRightLeg: 0, limbAtaxiaLeftLeg: 0, tandemWalking: 0, gaitAtaxia: 0, romberg: 0, otherCerebellar: 0, inabilityCoordinatedMovements: false },
-  sensory: { vibSeverity: "normal", vibCount: 0, vibRightArm: false, vibLeftArm: false, vibRightLeg: false, vibLeftLeg: false, ptSeverity: "normal", ptCount: 0, ptRightArm: false, ptLeftArm: false, ptRightLeg: false, ptLeftLeg: false, jpSeverity: "normal", jpCount: 0, jpRightArm: false, jpLeftArm: false, jpRightLeg: false, jpLeftLeg: false },
-  bb: { urinaryHesitancy: 0, urinaryUrgency: 0, catheterisation: "none", bowelDysfunction: 0 },
-  mental: { mildFatigue: false, moderateToSevereFatigue: false, signsOnlyCognition: false, lightlyReducedCognition: false, moderatelyReducedCognition: false, markedlyReducedCognition: false, pronouncedDementia: false },
+  sensory: { vibSeverity: "normal", vibCount: 0, vibRightArm: false, vibLeftArm: false, vibRightLeg: false, vibLeftLeg: false, ptSeverity: "normal", ptCount: 0, ptRightArm: false, ptLeftArm: false, ptRightLeg: false, ptLeftLeg: false, jpSeverity: "normal", jpCount: 0, jpRightArm: false, jpLeftArm: false, jpRightLeg: false, jpLeftLeg: false, lhermitte: false, paraesthesiaeArmR: false, paraesthesiaeArmL: false, paraesthesiaeTrunkR: false, paraesthesiaeTrunkL: false, paraesthesiaeLegR: false, paraesthesiaeLegL: false },
+  bb: { urinaryHesitancy: 0, urinaryUrgency: 0, catheterisation: "none", bowelDysfunction: 0, sexualDysfunction: 0 },
+  mental: { mildFatigue: false, moderateToSevereFatigue: false, signsOnlyCognition: false, lightlyReducedCognition: false, moderatelyReducedCognition: false, markedlyReducedCognition: false, pronouncedDementia: false, depression: false, euphoria: false },
   assistance: "none",
   walkingDistance: "500",
   ambulationRestricted: false,
+  reportedDistance: "",
+  reportedTime: "",
+  measuredDistance: "",
   overrides: {},
 };
 
-const STATE_VERSION = 3;
+const STATE_VERSION = 4;
 
 // Remove default values from object (recursive)
 function removeDefaults(obj: any, defaults: any): any {
@@ -101,6 +117,7 @@ export function migrateState(version: number, saved: any): FormState {
   let state = saved ?? {};
   if (version < 2) state = migrateV1(state);
   if (version < 3) state = migrateV2(state);
+  if (version < 4) state = migrateV3(state);
   const merged: FormState = mergeWithDefaults(state, DEFAULT_STATE);
   merged.overrides = sanitizeOverrides(state.overrides);
   return merged;
@@ -113,6 +130,23 @@ function sanitizeOverrides(saved: any): Partial<FSScores> {
     if (Number.isInteger(value) && value >= 0 && value <= FS_MAX[key]) overrides[key] = value;
   }
   return overrides;
+}
+
+// Version 3 recorded pyramidal signs as checkboxes; version 4 grades them as on the scoring sheet.
+function migrateV3(saved: any): any {
+  const { hyperreflexiaLeft, hyperreflexiaRight, babinskiLeft, babinskiRight, clonusLeft, clonusRight, spasticGait, fatigability, ...pyramidal } = saved.pyramidal ?? {};
+  const setReflexes = (side: "R" | "L", grade: number) => {
+    for (const r of REFLEXES) pyramidal[`reflex${capitalize(r)}${side}`] = grade;
+  };
+  if (hyperreflexiaRight) setReflexes("R", 3);
+  if (hyperreflexiaLeft) setReflexes("L", 3);
+  if (clonusRight) pyramidal.reflexAnkleR = 4;
+  if (clonusLeft) pyramidal.reflexAnkleL = 4;
+  if (babinskiRight) pyramidal.plantarR = 2;
+  if (babinskiLeft) pyramidal.plantarL = 2;
+  if (spasticGait) pyramidal.gaitSpasticity = 2;
+  if (fatigability) pyramidal.overallMotorPerformance = 1;
+  return { ...saved, pyramidal };
 }
 
 // Version 2 used 12 muscle groups per side; version 3 uses the 10 groups of the scoring sheet.

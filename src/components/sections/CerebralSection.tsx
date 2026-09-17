@@ -1,7 +1,7 @@
 import type { Dispatch, SetStateAction } from "react";
 import type { Translations } from "../../i18n/translations";
 import type { MentalForm } from "../../types/forms";
-import { Choice, type ChoiceOption } from "../controls";
+import { Check, Choice, Optional, type ChoiceOption } from "../controls";
 
 // Stored as exclusive flags; shown as levels
 const COGNITION_KEYS = ["signsOnlyCognition", "lightlyReducedCognition", "moderatelyReducedCognition", "markedlyReducedCognition", "pronouncedDementia"] as const;
@@ -29,6 +29,10 @@ export function CerebralSection({ value, onChange, t }: { value: MentalForm; onC
       <div className="space-y-2">
         <Choice label={t.fatigue} value={levelOf(FATIGUE_KEYS)} options={fatigueOptions} onChange={setLevel(FATIGUE_KEYS)} />
         <div className="text-xs text-gray-600">{t.cerebralNote}</div>
+        <Optional title={`${t.depression}, ${t.euphoria.toLowerCase()} – ${t.documentedOnly.toLowerCase()}`} active={value.depression || value.euphoria}>
+          <Check label={t.depression} checked={value.depression} onChange={(checked) => onChange((prev) => ({ ...prev, depression: checked }))} />
+          <Check label={t.euphoria} checked={value.euphoria} onChange={(checked) => onChange((prev) => ({ ...prev, euphoria: checked }))} />
+        </Optional>
       </div>
     </>
   );

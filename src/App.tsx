@@ -60,14 +60,19 @@ export default function App() {
   const [distance, setDistance] = useState<string>(DEFAULT_STATE.walkingDistance);
   const [ambulationRestricted, setAmbulationRestricted] = useState<boolean>(DEFAULT_STATE.ambulationRestricted);
   const [overrides, setOverrides] = useState<FormState["overrides"]>(DEFAULT_STATE.overrides);
+  const [ambulationDocs, setAmbulationDocs] = useState({
+    reportedDistance: DEFAULT_STATE.reportedDistance,
+    reportedTime: DEFAULT_STATE.reportedTime,
+    measuredDistance: DEFAULT_STATE.measuredDistance,
+  });
   const [previousInput, setPreviousInput] = useState("");
   const [showExplainModal, setShowExplainModal] = useState(false);
 
   useEffect(() => { document.documentElement.lang = language === "no" ? "nb" : "en"; }, [language]);
 
   const formState: FormState = useMemo(
-    () => ({ visual, brainstem, pyramidal, cerebellar, sensory, bb, mental, assistance, walkingDistance: distance, ambulationRestricted, overrides }),
-    [visual, brainstem, pyramidal, cerebellar, sensory, bb, mental, assistance, distance, ambulationRestricted, overrides]
+    () => ({ visual, brainstem, pyramidal, cerebellar, sensory, bb, mental, assistance, walkingDistance: distance, ambulationRestricted, ...ambulationDocs, overrides }),
+    [visual, brainstem, pyramidal, cerebellar, sensory, bb, mental, assistance, distance, ambulationRestricted, ambulationDocs, overrides]
   );
   const assessment = useMemo(() => assess(formState), [formState]);
   const previousAssessment = useMemo(() => {
@@ -104,6 +109,7 @@ export default function App() {
     setDistance(state.walkingDistance);
     setAmbulationRestricted(state.ambulationRestricted);
     setOverrides(state.overrides);
+    setAmbulationDocs({ reportedDistance: state.reportedDistance, reportedTime: state.reportedTime, measuredDistance: state.measuredDistance });
   }
 
   function handleLanguageChange(newLang: Language) {
@@ -193,6 +199,8 @@ export default function App() {
                 parsedDistance={assessment.distance}
                 restricted={ambulationRestricted}
                 onRestricted={setAmbulationRestricted}
+                documentation={ambulationDocs}
+                onDocumentation={(field, v) => setAmbulationDocs((prev) => ({ ...prev, [field]: v }))}
                 ambulation={assessment.result.ambulation}
                 t={t}
               />

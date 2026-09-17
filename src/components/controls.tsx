@@ -3,6 +3,8 @@
 // Abnormal (non-default) values are highlighted so findings stand out at a glance.
 // ============================================================================
 
+import { Fragment, type ReactNode } from "react";
+
 export type ChoiceOption<T> = { value: T; short: string; description?: string };
 
 // "2 - Mild: ..." → { short: "2", description: "Mild: ..." }
@@ -40,7 +42,7 @@ export function Choice<T extends string | number>({ label, value, options, onCha
   const abnormal = value !== normalValue;
   const selected = options.find((o) => o.value === value);
   const buttons = (
-    <div role="radiogroup" aria-label={label} className={`flex flex-wrap ${compact ? "gap-0.5" : "gap-1"}`}>
+    <div role="radiogroup" aria-label={label} className={`flex ${compact ? "flex-nowrap gap-0.5" : "flex-wrap gap-1"}`}>
       {options.map((o) => {
         const active = o.value === value;
         return (
@@ -132,5 +134,60 @@ export function MultiChoice({ label, entries, labels }: {
         <div key={side} className="text-xs text-blue-950"><span className="font-semibold">{side}:</span> {options[value].description}</div>
       ))}
     </div>
+  );
+}
+
+export type SidedRow = {
+  key: string;
+  label: string;
+  right: number;
+  left: number;
+  normal: number;
+  levels: readonly string[];
+  onRight: (value: number) => void;
+  onLeft: (value: number) => void;
+};
+
+// Right/left graded items in a grid, e.g. reflexes; definitions of abnormal levels listed below
+export function SidedGrid({ title, rows, rightLabel, leftLabel }: { title?: string; rows: SidedRow[]; rightLabel: string; leftLabel: string }) {
+  const abnormal = rows.flatMap((row) => [
+    row.right !== row.normal && { key: `${row.key}R`, text: `${row.label} ${rightLabel}: ${levelOptions(row.levels)[row.right].description}` },
+    row.left !== row.normal && { key: `${row.key}L`, text: `${row.label} ${leftLabel}: ${levelOptions(row.levels)[row.left].description}` },
+  ]).filter((x): x is { key: string; text: string } => Boolean(x));
+  return (
+    <div className="space-y-1">
+      {title && <div className="text-sm font-medium">{title}</div>}
+      <div className="grid grid-cols-[auto_auto] sm:grid-cols-[minmax(8rem,1fr)_auto_auto] gap-x-2 sm:gap-x-4 gap-y-1 items-center">
+        <div className="hidden sm:block" />
+        <div className="text-xs font-semibold">{rightLabel}</div>
+        <div className="text-xs font-semibold">{leftLabel}</div>
+        {rows.map((row) => {
+          const options = levelOptions(row.levels);
+          const changed = row.right !== row.normal || row.left !== row.normal;
+          return (
+            <Fragment key={row.key}>
+              <div className={`col-span-2 sm:col-span-1 text-sm pt-1 sm:pt-0 ${changed ? "font-semibold text-blue-950" : ""}`}>{row.label}</div>
+              <Choice compact value={row.right} options={options} normal={row.normal} showDescription={false} onChange={row.onRight} />
+              <Choice compact value={row.left} options={options} normal={row.normal} showDescription={false} onChange={row.onLeft} />
+            </Fragment>
+          );
+        })}
+      </div>
+      {abnormal.length > 0 && (
+        <div className="space-y-0.5 pt-1">
+          {abnormal.map((a) => <div key={a.key} className="text-xs text-blue-950">{a.text}</div>)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Collapsible group of optional items; opens automatically when something is recorded
+export function Optional({ title, active, children }: { title: string; active: boolean; children: ReactNode }) {
+  return (
+    <details className="group rounded-lg border border-dashed px-3 py-2" open={active || undefined}>
+      <summary className="cursor-pointer text-sm font-medium select-none">{title}</summary>
+      <div className="pt-3 space-y-4">{children}</div>
+    </details>
   );
 }

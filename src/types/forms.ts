@@ -42,17 +42,37 @@ export const ARM_MUSCLES = ["deltoid", "biceps", "triceps", "wristFingerFlexors"
 export const LEG_MUSCLES = ["hipFlexors", "kneeFlexors", "kneeExtensors", "plantarFlexion", "dorsiflexion"] as const;
 export type MuscleGroup = typeof ARM_MUSCLES[number] | typeof LEG_MUSCLES[number];
 
-// BMRC grade 0–5 per muscle group and side, e.g. deltoidR
-export type PyramidalForm = { [K in `${MuscleGroup}${"R" | "L"}`]: number } & {
-  // Upper motor neuron signs
-  hyperreflexiaLeft: boolean;
-  hyperreflexiaRight: boolean;
-  babinskiLeft: boolean;
-  babinskiRight: boolean;
-  clonusLeft: boolean;
-  clonusRight: boolean;
-  spasticGait: boolean;
-  fatigability: boolean;
+export const REFLEXES = ["biceps", "triceps", "brachioradialis", "knee", "ankle"] as const;
+export type Reflex = typeof REFLEXES[number];
+
+type Sided<Name extends string, T> = { [K in `${Name}${"R" | "L"}`]: T };
+
+// Items graded per side on the scoring sheet, with their normal (default) value
+export const PYRAMIDAL_SIDED_DEFAULTS = {
+  plantar: 0,          // 0 flexor, 1 neutral/equivocal, 2 extensor
+  cutaneous: 0,        // 0 normal, 1 weak, 2 absent
+  palmomental: 0,      // 0 absent, 1 present (optional)
+  pronation: 0,        // position test UE, pronation 0–2 (optional)
+  downwardDrift: 0,    // position test UE, downward drift 0–2 (optional)
+  legSinking: 0,       // position test LE, sinking 0–4 (optional)
+  heelWalking: 0,      // 0–2 (optional)
+  toeWalking: 0,       // 0–2 (optional)
+  hopping: 0,          // 0–3 (optional)
+  spasticityArms: 0,   // 0–4
+  spasticityLegs: 0,   // 0–4
+} as const;
+export type PyramidalSidedItem = keyof typeof PYRAMIDAL_SIDED_DEFAULTS;
+
+// BMRC grade 0–5 per muscle group and side (e.g. deltoidR), reflexes 0–5 (e.g. reflexKneeL, 2 = normal)
+export type PyramidalForm =
+  Sided<MuscleGroup, number> &
+  Sided<`reflex${Capitalize<Reflex>}`, number> &
+  Sided<PyramidalSidedItem, number> & {
+  // Angle (°) when able to lift only one leg at a time; free text, optional
+  legLiftDegreesR: string;
+  legLiftDegreesL: string;
+  gaitSpasticity: number;            // 0–3
+  overallMotorPerformance: number;   // 0–2
 };
 
 export type CerebellarForm = {
@@ -89,6 +109,14 @@ export type SensoryForm = {
   jpLeftArm: boolean;
   jpRightLeg: boolean;
   jpLeftLeg: boolean;
+  // Documented only; do not count towards the Sensory FS
+  lhermitte: boolean;
+  paraesthesiaeArmR: boolean;
+  paraesthesiaeArmL: boolean;
+  paraesthesiaeTrunkR: boolean;
+  paraesthesiaeTrunkL: boolean;
+  paraesthesiaeLegR: boolean;
+  paraesthesiaeLegL: boolean;
 };
 
 export type CatheterisationLevel = "none" | "intermittent" | "almostConstant" | "indwelling";
@@ -98,6 +126,8 @@ export type BowelBladderForm = {
   urinaryUrgency: 0 | 1 | 2 | 3 | 4;
   catheterisation: CatheterisationLevel;
   bowelDysfunction: 0 | 1 | 2 | 3 | 4;
+  // Documented only; does not count towards the Bowel/Bladder FS
+  sexualDysfunction: 0 | 1 | 2 | 3 | 4;
 };
 
 export type MentalForm = {
@@ -110,4 +140,7 @@ export type MentalForm = {
   moderatelyReducedCognition: boolean;
   markedlyReducedCognition: boolean;
   pronouncedDementia: boolean;
+  // Documented only; do not count towards the Cerebral FS or EDSS
+  depression: boolean;
+  euphoria: boolean;
 };

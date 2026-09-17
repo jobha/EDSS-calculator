@@ -5,7 +5,7 @@
 import type { PyramidalForm, CerebellarForm, SensoryForm, BowelBladderForm, MentalForm, BrainstemForm, VisualForm } from "../types/forms";
 import type { Translations } from "../i18n/translations";
 import type { AmbulationResult } from "./edss";
-import { pyramidalLimbs } from "./scoring";
+import { pyramidalLimbs, pyramidalSigns } from "./scoring";
 
 export type ValidationWarning = {
   type: 'warning' | 'info';
@@ -38,9 +38,7 @@ export function validateEDSSInputs(input: ValidationInput, t: Translations): Val
   // 1. Pyramidal
   const muscles = Object.values(pyramidalLimbs(pyramidal)).flat();
   const hasWeakness = muscles.some((v) => v < 5);
-  const hasPyramidalSigns = pyramidal.hyperreflexiaLeft || pyramidal.hyperreflexiaRight ||
-    pyramidal.babinskiLeft || pyramidal.babinskiRight || pyramidal.clonusLeft || pyramidal.clonusRight ||
-    pyramidal.spasticGait || pyramidal.fatigability;
+  const hasPyramidalSigns = pyramidalSigns(pyramidal);
   if (fs.P === 0 && (hasWeakness || hasPyramidalSigns)) warn(t.warnPyramidalFSZero);
   if (fs.P >= 5 && !muscles.some((v) => v <= 2)) warn(t.warnPyramidalFSHigh);
   if (fs.P === 6 && muscles.some((v) => v > 1)) warn(t.warnPyramidalFS6);

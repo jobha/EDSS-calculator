@@ -4,7 +4,7 @@
 
 import type { Translations } from "../i18n/translations";
 import type { AssistanceId, Severity } from "../types/edss";
-import { ARM_MUSCLES, LEG_MUSCLES } from "../types/forms";
+import { ARM_MUSCLES, LEG_MUSCLES, PYRAMIDAL_SIDED_DEFAULTS, REFLEXES, type PyramidalForm } from "../types/forms";
 import type { Assessment, FSKey } from "./assessment";
 import { convertBBForEDSS, convertVisualForEDSS, type AmbulationResult } from "./edss";
 import { formatEyeAcuity } from "./formatting";
@@ -112,6 +112,76 @@ function mentalFindings(state: FormState, t: Translations): string[] {
   ]);
 }
 
+// "3 - Exaggerated" → "exaggerated"; "2 - Moderate: ..." → "moderate"
+const levelWord = (label: string) => label.replace(/^\d+\s*-\s*/, '').split(':')[0].toLowerCase();
+
+type SidedItem = { name: string; r: number; l: number; normal: number; levels: readonly string[] };
+
+// Graded pyramidal findings other than muscle strength, in scoring sheet order
+function pyramidalItems(p: PyramidalForm, t: Translations): { reflexes: SidedItem[]; sided: SidedItem[]; single: { name: string; value: number; levels: readonly string[] }[] } {
+  const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+  const item = (key: keyof typeof PYRAMIDAL_SIDED_DEFAULTS, name: string, levels: readonly string[]): SidedItem =>
+    ({ name, r: p[`${key}R`], l: p[`${key}L`], normal: PYRAMIDAL_SIDED_DEFAULTS[key], levels });
+  return {
+    reflexes: REFLEXES.map((r) => ({ name: t.reflexNames[r].toLowerCase(), r: p[`reflex${cap(r)}R` as keyof PyramidalForm] as number, l: p[`reflex${cap(r)}L` as keyof PyramidalForm] as number, normal: 2, levels: t.reflexLevels })),
+    sided: [
+      item("plantar", t.plantarText, t.plantarLevels),
+      item("cutaneous", t.cutaneousText, t.cutaneousLevels),
+      item("palmomental", t.palmomentalText, t.palmomentalLevels),
+      item("spasticityArms", t.spasticityArmsText, t.spasticityLevels),
+      item("spasticityLegs", t.spasticityLegsText, t.spasticityLevels),
+      item("pronation", t.functionalTestText.pronation, t.driftLevels),
+      item("downwardDrift", t.functionalTestText.downwardDrift, t.driftLevels),
+      item("legSinking", t.functionalTestText.legSinking, t.legSinkingLevels),
+      item("heelWalking", t.functionalTestText.heelWalking, t.heelToeLevels),
+      item("toeWalking", t.functionalTestText.toeWalking, t.heelToeLevels),
+      item("hopping", t.functionalTestText.hopping, t.hoppingLevels),
+    ],
+    single: [
+      { name: t.gaitSpasticityText, value: p.gaitSpasticity, levels: t.gaitSpasticityLevels },
+      { name: t.motorPerformanceText, value: p.overallMotorPerformance, levels: t.motorPerformanceShort.map((word, i) => `${i} - ${word}`) },
+    ],
+  };
+}
+
+// Reflexes with identical findings on both sides are grouped, e.g. [["biceps", "knee"], 3, 3]
+const groupReflexes = (reflexes: SidedItem[]) => {
+  const groups = new Map<string, { names: string[]; r: number; l: number }>();
+  for (const x of reflexes.filter((x) => x.r !== x.normal || x.l !== x.normal)) {
+    const key = `${x.r}|${x.l}`;
+    groups.set(key, { names: [...(groups.get(key)?.names ?? []), x.name], r: x.r, l: x.l });
+  }
+  return [...groups.values()];
+};
+
+const legLiftText = (p: PyramidalForm, t: Translations) => present([
+  p.legLiftDegreesR.trim() && `${t.legLiftText.replace('{degrees}', p.legLiftDegreesR.trim())} ${t.right}`,
+  p.legLiftDegreesL.trim() && `${t.legLiftText.replace('{degrees}', p.legLiftDegreesL.trim())} ${t.left}`,
+]);
+
+const paraesthesiaeSides = (state: FormState, t: Translations) => {
+  const s = state.sensory;
+  return present([
+    s.paraesthesiaeArmR && t.rightArm, s.paraesthesiaeArmL && t.leftArm,
+    s.paraesthesiaeTrunkR && t.rightTrunk, s.paraesthesiaeTrunkL && t.leftTrunk,
+    s.paraesthesiaeLegR && t.rightLeg, s.paraesthesiaeLegL && t.leftLeg,
+  ]);
+};
+
+const documentedSensory = (state: FormState, t: Translations) => {
+  const sides = paraesthesiaeSides(state, t);
+  return present([
+    state.sensory.lhermitte && t.lhermitteText,
+    sides.length > 0 && `${t.paraesthesiae.toLowerCase()} ${joinWithAnd(sides, t.and)}`,
+  ]);
+};
+
+const documentedBB = (state: FormState, t: Translations) =>
+  present([state.bb.sexualDysfunction > 0 && `${t.sexualDysfunction.toLowerCase()} (${levelWord(t.sexualDysfunctionLevels[state.bb.sexualDysfunction])})`]);
+
+const documentedMental = (state: FormState, t: Translations) =>
+  present([state.mental.depression && t.depression.toLowerCase(), state.mental.euphoria && t.euphoria.toLowerCase()]);
+
 const walkingRestrictedApplies = (state: FormState, assessment: Assessment) =>
   state.assistance === 'none' && state.ambulationRestricted && (assessment.distance === null || assessment.distance >= 500);
 
@@ -130,6 +200,10 @@ export function buildSummary(state: FormState, assessment: Assessment, t: Transl
     ? (Number.isFinite(rawDistance) && rawDistance > 2000 ? t.walkingDistanceNotLimited : distance != null ? `${t.unaided} ${distance} m` : `${t.unaided} (n/a)`)
       + (walkingRestrictedApplies(state, assessment) ? `, ${t.walkingRangeRestricted}` : '')
     : assistanceLabel(state.assistance, t);
+  const ambDocumentation = present([
+    state.reportedDistance.trim() && `${t.reportedShort} ${state.reportedDistance.trim()} m${state.reportedTime.trim() ? `/${state.reportedTime.trim()} min` : ''}`,
+    state.measuredDistance.trim() && `${t.measuredShort} ${state.measuredDistance.trim()} m`,
+  ]);
 
   const fsWithOverride = (key: FSKey) => `${key} ${fs[key]}${overridden[key] ? ` [${t.fsManualShort.replace('{suggested}', String(suggested[key]))}]` : ''}`;
   const withFindings = (findings: string) => findings ? ` (${findings})` : '';
@@ -141,17 +215,18 @@ export function buildSummary(state: FormState, assessment: Assessment, t: Transl
       { val: pyramidal[`${m}L`], name: t.muscles[m], side: t.leftAbbrev },
     ])
     .filter((m) => m.val < 5).map((m) => `${m.name} ${m.side} ${t.grade} ${m.val}`).join(', ');
-  const sidesText = (label: string, left: boolean, right: boolean) => {
-    const sides = [right && t.rightAbbrev, left && t.leftAbbrev].filter(Boolean);
-    return sides.length > 0 ? `${label} ${sides.join('+')}` : '';
-  };
+  const { reflexes, sided, single } = pyramidalItems(pyramidal, t);
+  const reflexGroups = groupReflexes(reflexes).map((g) =>
+    `${g.names.join('/')} ${present([g.r !== 2 && `${t.rightAbbrev}:${g.r}`, g.l !== 2 && `${t.leftAbbrev}:${g.l}`]).join('+')}`);
   const pFlags = present([
     weaknessText,
-    sidesText(t.hyperreflexia.toLowerCase(), pyramidal.hyperreflexiaLeft, pyramidal.hyperreflexiaRight),
-    sidesText(t.babinski, pyramidal.babinskiLeft, pyramidal.babinskiRight),
-    sidesText(t.clonus.toLowerCase(), pyramidal.clonusLeft, pyramidal.clonusRight),
-    pyramidal.spasticGait && t.spasticGaitText,
-    pyramidal.fatigability && t.fatigability.toLowerCase(),
+    reflexGroups.length > 0 && `${t.reflexes.toLowerCase()} ${reflexGroups.join(', ')}`,
+    ...sided.map((i) => {
+      const sides = present([i.r !== i.normal && `${t.rightAbbrev}:${i.r}`, i.l !== i.normal && `${t.leftAbbrev}:${i.l}`]);
+      return sides.length > 0 && `${i.name} ${sides.join('+')}`;
+    }),
+    ...single.map((i) => i.value > 0 && `${i.name} ${i.value}`),
+    ...legLiftText(pyramidal, t),
   ]).join(', ');
 
   // Visual
@@ -191,14 +266,14 @@ export function buildSummary(state: FormState, assessment: Assessment, t: Transl
 
   const lines = [
     `EDSS ${edss.toFixed(1)}`,
-    `${t.ambulationScore} ${result.ambulation?.score ?? 0} (${ambFinding})`,
+    `${t.ambulationScore} ${result.ambulation?.score ?? 0} (${[ambFinding, ...ambDocumentation].join('; ')})`,
     `${fsWithOverride('P')}${withFindings(pFlags)}`,
     `${fsWithOverride('V')}${fs.V !== vConverted ? ` (${t.corrected}: ${vConverted})` : ''}${vAbnormal ? ` (${vFindings})` : ''}`,
     `${fsWithOverride('BS')}${withFindings(bsFindings)}`,
     `${fsWithOverride('C')}${withFindings(cerebellarFindings(state, t).join(', '))}`,
-    `${fsWithOverride('S')}${withFindings(sFindings)}`,
-    `${fsWithOverride('BB')}${fs.BB !== bbConverted ? ` (${t.corrected}: ${bbConverted})` : ''}${withFindings(bowelBladderFindings(state, t).join(', '))}`,
-    `${fsWithOverride('M')}${withFindings(mentalFindings(state, t).join(', '))}`,
+    `${fsWithOverride('S')}${withFindings(present([sFindings, ...documentedSensory(state, t)]).join(', '))}`,
+    `${fsWithOverride('BB')}${fs.BB !== bbConverted ? ` (${t.corrected}: ${bbConverted})` : ''}${withFindings([...bowelBladderFindings(state, t), ...documentedBB(state, t)].join(', '))}`,
+    `${fsWithOverride('M')}${withFindings([...mentalFindings(state, t), ...documentedMental(state, t)].join(', '))}`,
   ];
   if (previous) {
     lines.push(`${t.previousVisit}: EDSS ${previous.result.edss.toFixed(1)} → ${edss.toFixed(1)} (${signed(edss - previous.result.edss)})`);
@@ -255,19 +330,34 @@ export function buildExaminationText(state: FormState, assessment: Assessment, t
       if (l < 5) weaknessFindings.push(`${t.grade} ${l} ${t.for} ${t.left} ${name}`);
     }
   }
-  const sideWord = (left: boolean, right: boolean) => left && right ? t.bilaterally : right ? t.right : t.left;
+  const { reflexes, sided, single } = pyramidalItems(pyramidal, t);
+  const reflexText = groupReflexes(reflexes).map((g) => {
+    const names = joinWithAnd(g.names, t.and);
+    if (g.r === g.l) return `${names} ${levelWord(t.reflexLevels[g.r])} ${t.bilaterally}`;
+    return `${names} ${present([
+      g.r !== 2 && `${levelWord(t.reflexLevels[g.r])} ${t.right}`,
+      g.l !== 2 && `${levelWord(t.reflexLevels[g.l])} ${t.left}`,
+    ]).join(', ')}`;
+  });
+  const sidedText = (i: SidedItem) => {
+    if (i.r !== i.normal && i.r === i.l) return [`${i.name} ${levelWord(i.levels[i.r])} ${t.bilaterally}`];
+    return present([
+      i.r !== i.normal && `${i.name} ${levelWord(i.levels[i.r])} ${t.right}`,
+      i.l !== i.normal && `${i.name} ${levelWord(i.levels[i.l])} ${t.left}`,
+    ]);
+  };
+  const reflexSentence = reflexText.length > 0 ? `${t.reflexes}: ${reflexText.join('; ')}` : '';
   const umnSigns = present([
-    (pyramidal.hyperreflexiaLeft || pyramidal.hyperreflexiaRight) && `${t.hyperreflexia.toLowerCase()} ${sideWord(pyramidal.hyperreflexiaLeft, pyramidal.hyperreflexiaRight)}`,
-    (pyramidal.babinskiLeft || pyramidal.babinskiRight) && `${t.positiveBarbinskiSign} ${sideWord(pyramidal.babinskiLeft, pyramidal.babinskiRight)}`,
-    (pyramidal.clonusLeft || pyramidal.clonusRight) && `${t.clonus.toLowerCase()} ${sideWord(pyramidal.clonusLeft, pyramidal.clonusRight)}`,
-    pyramidal.spasticGait && t.spasticGaitText,
-    pyramidal.fatigability && t.fatigability.toLowerCase(),
+    ...sided.flatMap(sidedText),
+    ...single.map((i) => i.value > 0 && `${i.name}: ${levelWord(i.levels[i.value])}`),
+    ...legLiftText(pyramidal, t),
   ]);
-  if (weaknessFindings.length > 0 || umnSigns.length > 0) {
+  if (weaknessFindings.length > 0 || reflexSentence || umnSigns.length > 0) {
     sections.push(present([
-      weaknessFindings.length > 0 && `${t.reducedStrength} ${joinWithAnd(weaknessFindings, t.and)}`,
+      weaknessFindings.length > 0 ? `${t.reducedStrength} ${joinWithAnd(weaknessFindings, t.and)}` : t.normalStrength,
+      reflexSentence,
       umnSigns.length > 0 && capitalize(umnSigns.join(', ')),
-    ]).join(', ') + '.');
+    ]).join('. ') + '.');
   } else {
     sections.push(t.withFullStrength + '.');
   }
@@ -285,15 +375,24 @@ export function buildExaminationText(state: FormState, assessment: Assessment, t
     const limbs = LIMB_KEYS.filter((limb) => sensoryValue(state, prefix, limb)).map((limb) => limbNames[limb]);
     return `${severityText(severity, t)} ${deficitText} ${joinWithAnd(limbs, t.and)}`;
   }));
-  sections.push(sParts.length > 0 ? capitalize(sParts.join(', ')) + '.' : t.sensoryExaminationNormal + '.');
+  const sDocumented = documentedSensory(state, t);
+  sections.push(sParts.length > 0
+    ? capitalize([...sParts, ...sDocumented].join(', ')) + '.'
+    : t.sensoryExaminationNormal + '.' + (sDocumented.length > 0 ? ` ${capitalize(sDocumented.join(', '))}.` : ''));
 
   // Bowel/Bladder
   const bbParts = bowelBladderFindings(state, t);
-  sections.push(bbParts.length > 0 ? capitalize(bbParts.join(', ')) + '.' : t.bowelBladderNormal + '.');
+  const bbDocumented = documentedBB(state, t);
+  sections.push(bbParts.length > 0
+    ? capitalize([...bbParts, ...bbDocumented].join(', ')) + '.'
+    : t.bowelBladderNormal + '.' + (bbDocumented.length > 0 ? ` ${capitalize(bbDocumented.join(', '))}.` : ''));
 
   // Cerebral
   const mParts = mentalFindings(state, t);
-  sections.push(mParts.length > 0 ? capitalize(mParts.join(', ')) + '.' : t.cognitiveNormal + '.');
+  const mDocumented = documentedMental(state, t);
+  sections.push(mParts.length > 0
+    ? capitalize([...mParts, ...mDocumented].join(', ')) + '.'
+    : t.cognitiveNormal + '.' + (mDocumented.length > 0 ? ` ${capitalize(mDocumented.join(', '))}.` : ''));
 
   // Ambulation
   if (state.assistance === 'none') {
@@ -306,6 +405,15 @@ export function buildExaminationText(state: FormState, assessment: Assessment, t
     }
   } else {
     sections.push(capitalize(assistanceLabel(state.assistance, t)) + '.');
+  }
+
+  const reported = state.reportedDistance.trim();
+  const measured = state.measuredDistance.trim();
+  if (reported || measured) {
+    sections.push(capitalize(present([
+      reported && [t.reportedWalkText.replace('{distance}', `${reported} m`), state.reportedTime.trim() && t.reportedTimeText.replace('{time}', state.reportedTime.trim())].filter(Boolean).join(' '),
+      measured && t.measuredWalkText.replace('{distance}', measured),
+    ]).join(', ')) + '.');
   }
 
   sections.push(`EDSS: ${assessment.result.edss.toFixed(1)}`);
