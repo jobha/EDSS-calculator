@@ -98,7 +98,7 @@ export const translations = {
       "Plantar response: 0 flexor · 1 neutral or equivocal · 2 extensor. Cutaneous reflexes: 0 normal · 1 weak · 2 absent. Palmomental reflex (optional): 0 absent · 1 present.",
       "Grade each side separately; asymmetry is shown in the >< column of the printout.",
       "In the calculator, exaggerated reflexes or clonus (≥3) and an extensor plantar response count as pyramidal signs (FS 1). Neutral plantar responses, weak or absent cutaneous reflexes and a palmomental reflex are documented only.",
-      "Tip: use reinforcement (Jendrassik manoeuvre) before grading a reflex as absent.",
+      "Tip: try the Jendrassik manoeuvre before grading a reflex as absent (0). A reflex that only appears with it is graded diminished (1).",
     ],
     spasticityGuide: [
       "Spasticity is a velocity-dependent increase in muscle tone: resistance to passive movement increases the faster the joint is moved.",
@@ -520,7 +520,7 @@ export const translations = {
       "Plantarrefleks: 0 fleksor · 1 nøytral eller usikker · 2 ekstensor. Bukhudsreflekser: 0 normale · 1 svekkede · 2 utslukkede. Palmomentalrefleks (valgfri): 0 fraværende · 1 til stede.",
       "Skår hver side for seg; asymmetri vises i ><-kolonnen på utskriften.",
       "I kalkulatoren teller livlige reflekser eller klonus (≥3) og ekstensor plantarrefleks som pyramidale tegn (FS 1). Nøytral plantarrefleks, svekkede eller utslukkede bukhudsreflekser og palmomentalrefleks dokumenteres bare.",
-      "Tips: bruk forsterkning (Jendrassiks manøver) før en refleks skåres som utslukket.",
+      "Tips: Prøv Jendrassiks manøver før du skårer en refleks som utslukket (0). Kommer refleksen bare frem med manøveren, skår svekket (1).",
     ],
     spasticityGuide: [
       "Spastisitet er hastighetsavhengig økt muskeltonus: motstanden mot passiv bevegelse øker jo raskere leddet beveges.",
