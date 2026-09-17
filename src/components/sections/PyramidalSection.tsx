@@ -1,7 +1,7 @@
 import React, { type Dispatch, type SetStateAction } from "react";
 import type { Translations } from "../../i18n/translations";
 import { ARM_MUSCLES, LEG_MUSCLES, PYRAMIDAL_SIDED_DEFAULTS, REFLEXES, type MuscleGroup, type PyramidalForm, type PyramidalSidedItem } from "../../types/forms";
-import { Choice, Optional, SidedGrid, levelOptions, type ChoiceOption, type SidedRow } from "../controls";
+import { Choice, Guide, Optional, SidedGrid, levelOptions, type ChoiceOption, type SidedRow } from "../controls";
 
 const STRENGTH_OPTIONS: ChoiceOption<number>[] = [5, 4, 3, 2, 1, 0].map((v) => ({ value: v, short: String(v) }));
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -54,12 +54,14 @@ export function PyramidalSection({ value, onChange, t }: { value: PyramidalForm;
   return (
     <>
       <div className="md:col-span-2 grid 2xl:grid-cols-2 gap-x-8 gap-y-4">
+        <div className="2xl:col-span-2"><Guide title={`${t.gradingGuide} – ${t.printStrength}`} items={t.strengthGuide} /></div>
         {strengthTable(t.upperLimbsMRC, ARM_MUSCLES)}
         {strengthTable(t.lowerLimbsMRC, LEG_MUSCLES)}
       </div>
 
       <div className="md:col-span-2 grid 2xl:grid-cols-2 gap-x-8 gap-y-6">
         <div className="space-y-2">
+          <Guide title={`${t.gradingGuide} – ${t.reflexes}`} items={t.reflexGuide} />
           <SidedGrid
             title={t.reflexes}
             rightLabel={t.rightAbbrev}
@@ -75,6 +77,7 @@ export function PyramidalSection({ value, onChange, t }: { value: PyramidalForm;
         </div>
 
         <div className="space-y-4">
+          <Guide title={`${t.gradingGuide} – ${t.spasticity}`} items={t.spasticityGuide} />
           <SidedGrid
             title={t.spasticity}
             rightLabel={t.rightAbbrev}

@@ -192,3 +192,15 @@ export function Optional({ title, active, children }: { title: string; active: b
     </details>
   );
 }
+
+// Collapsed grading instructions next to a group of fields
+export function Guide({ title, items }: { title: string; items: readonly string[] }) {
+  return (
+    <details className="rounded-lg bg-gray-50 px-3 py-1.5 text-xs text-gray-800">
+      <summary className="cursor-pointer select-none font-medium text-blue-800">ⓘ {title}</summary>
+      <ul className="list-disc pl-4 pt-1.5 pb-1 space-y-1">
+        {items.map((item) => <li key={item}>{item}</li>)}
+      </ul>
+    </details>
+  );
+}
