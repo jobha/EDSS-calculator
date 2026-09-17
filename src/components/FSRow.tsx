@@ -1,8 +1,20 @@
 import React from "react";
+import { FS_MAX, type FSKey } from "../utils/assessment";
+
+// Section titles stay in English (Kurtzke FS abbreviations)
+export const FS_LABELS: Record<FSKey, string> = {
+  V: "V (Visual)",
+  BS: "BS (Brainstem)",
+  P: "P (Pyramidal)",
+  C: "C (Cerebellar)",
+  S: "S (Sensory)",
+  BB: "BB (Bowel/Bladder)",
+  M: "M (Cerebral)",
+};
 
 interface FSRowProps {
-  code: string;
-  meta: { label: string; max: number; help: string };
+  code: FSKey;
+  help: string;
   // Score used for the EDSS
   value: number;
   // Score suggested from the examination findings
@@ -23,7 +35,7 @@ const badgeClass = (value: number) =>
     : value === 3 ? "bg-orange-100 text-orange-900"
     : "bg-red-100 text-red-900";
 
-export function FSRow({ code, meta, value, suggested, overridden, onOverride, isNormal, onNormal, labels, children }: FSRowProps) {
+export function FSRow({ code, help, value, suggested, overridden, onOverride, isNormal, onNormal, labels, children }: FSRowProps) {
   return (
     <section id={`fs-${code}`} className={`space-y-3 p-3 md:p-4 rounded-xl border bg-white scroll-mt-36 lg:scroll-mt-4 ${overridden ? "border-amber-400" : ""}`}>
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -32,8 +44,8 @@ export function FSRow({ code, meta, value, suggested, overridden, onOverride, is
             {value}
           </span>
           <div>
-            <h2 className="font-semibold">{meta.label}</h2>
-            <div className="text-xs opacity-60">{meta.help}</div>
+            <h2 className="font-semibold">{FS_LABELS[code]}</h2>
+            <div className="text-xs opacity-60">{help}</div>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -56,7 +68,7 @@ export function FSRow({ code, meta, value, suggested, overridden, onOverride, is
             onChange={(e) => onOverride(e.target.value === "auto" ? null : Number(e.target.value))}
           >
             <option value="auto">{labels.auto.replace("{suggested}", String(suggested))}</option>
-            {Array.from({ length: meta.max + 1 }, (_, i) => (
+            {Array.from({ length: FS_MAX[code] + 1 }, (_, i) => (
               <option key={i} value={i}>{i}</option>
             ))}
           </select>

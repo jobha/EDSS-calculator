@@ -108,3 +108,29 @@ export function Toggles<K extends string>({ label, items, onToggle, disabled = f
     </div>
   );
 }
+
+// Several graded selections under one label, e.g. right/left side or the four limbs
+export function MultiChoice({ label, entries, labels }: {
+  label: string;
+  entries: readonly (readonly [string, number, (value: number) => void])[];
+  labels: readonly string[];
+}) {
+  const options = levelOptions(labels);
+  const abnormal = entries.filter(([, value]) => value > 0);
+  return (
+    <div className={`space-y-1 ${highlight(abnormal.length > 0)}`}>
+      <div className="text-sm font-medium">{label}</div>
+      <div className="flex flex-wrap gap-x-4 gap-y-1">
+        {entries.map(([side, value, onChange]) => (
+          <div key={side} className="flex items-center gap-2">
+            <span className="text-xs font-semibold w-9 shrink-0">{side}</span>
+            <Choice value={value} options={options} onChange={onChange} showDescription={false} />
+          </div>
+        ))}
+      </div>
+      {abnormal.map(([side, value]) => (
+        <div key={side} className="text-xs text-blue-950"><span className="font-semibold">{side}:</span> {options[value].description}</div>
+      ))}
+    </div>
+  );
+}
