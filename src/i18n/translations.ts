@@ -330,9 +330,6 @@ export const translations = {
     previous: "Previous",
     current: "Current",
     change: "Change",
-    compareWorsening: "EDSS increase meets the worsening threshold (≥{threshold} from EDSS {previous}). Confirm at a later visit (usually ≥3–6 months) before recording confirmed disability worsening.",
-    compareImprovement: "EDSS decrease meets the improvement threshold (≥{threshold} from EDSS {previous}). Confirm at a later visit before recording confirmed improvement.",
-    compareStable: "EDSS change is below the threshold (±{threshold} from EDSS {previous}).",
     compareRescoredNote: "The previous visit is rescored from its saved findings with the current rules, so its EDSS can differ from what was recorded at the time.",
   },
   no: {
@@ -660,9 +657,6 @@ export const translations = {
     previous: "Forrige",
     current: "Nå",
     change: "Endring",
-    compareWorsening: "EDSS-økningen når terskelen for forverring (≥{threshold} fra EDSS {previous}). Bekreft ved senere konsultasjon (vanligvis ≥3–6 måneder) før bekreftet funksjonsforverring registreres.",
-    compareImprovement: "EDSS-reduksjonen når terskelen for bedring (≥{threshold} fra EDSS {previous}). Bekreft ved senere konsultasjon før bekreftet bedring registreres.",
-    compareStable: "EDSS-endringen er under terskelen (±{threshold} fra EDSS {previous}).",
     compareRescoredNote: "Forrige konsultasjon skåres på nytt fra lagrede funn med gjeldende regler, så EDSS kan avvike fra det som ble registrert den gang.",
   }
 };

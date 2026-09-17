@@ -5,7 +5,7 @@ import type { VisualForm, BrainstemForm, PyramidalForm, CerebellarForm, SensoryF
 import { ARM_MUSCLES, LEG_MUSCLES } from "./types/forms";
 import { formatEyeAcuity } from "./utils/formatting";
 import { convertVisualForEDSS, convertBBForEDSS, correctedFS, FS_STEP_ROWS, type AmbulationResult, type FSColumn } from "./utils/edss";
-import { assess, compareEDSS, FS_KEYS, FS_MAX, type FSKey } from "./utils/assessment";
+import { assess, FS_KEYS, FS_MAX, type FSKey } from "./utils/assessment";
 import { DEFAULT_STATE, decodeState, encodeState, type FormState } from "./utils/state";
 import { FSRow } from "./components/FSRow";
 import { Check, Choice, Toggles, highlight, levelOptions, splitLevel, type ChoiceOption } from "./components/controls";
@@ -130,8 +130,7 @@ export default function App() {
     const state = previousInput.trim() ? decodeState(previousInput) : null;
     return state ? assess(state) : null;
   }, [previousInput]);
-  const change = previousAssessment ? compareEDSS(previousAssessment.result.edss, edss) : null;
-  const changeClass = !change ? '' : change.status === 'worsening' ? 'bg-red-100 text-red-900' : change.status === 'improvement' ? 'bg-green-100 text-green-900' : 'bg-gray-100 text-gray-800';
+  const change = previousAssessment ? { delta: edss - previousAssessment.result.edss } : null;
   const signed = (n: number) => `${n > 0 ? '+' : n < 0 ? '−' : '±'}${Math.abs(n).toFixed(1)}`;
 
   const describeAmbulation = (a: AmbulationResult) => `${t.ambulationScore} ${a.score} (${t.ambulationScoreDescriptions[a.score]})`;
@@ -651,7 +650,7 @@ export default function App() {
   );
 
   const changeBadge = change && (
-    <span className={`text-xs font-semibold rounded-lg px-2 py-0.5 ${changeClass}`} title={t.previousVisit}>{signed(change.delta)}</span>
+    <span className="text-xs font-semibold rounded-lg px-2 py-0.5 bg-gray-100 text-gray-800" title={t.previousVisit}>{signed(change.delta)}</span>
   );
 
   const resultPanel = (
@@ -926,11 +925,6 @@ export default function App() {
                 {previousInput.trim() !== '' && !previousAssessment && <div className="text-xs text-red-600">{t.restoreError}</div>}
                 {previousAssessment && change && (
                   <>
-                    <div className={`text-sm rounded-lg p-2 ${changeClass}`}>
-                      {(change.status === 'worsening' ? t.compareWorsening : change.status === 'improvement' ? t.compareImprovement : t.compareStable)
-                        .replace('{threshold}', change.threshold.toFixed(1))
-                        .replace('{previous}', previousAssessment.result.edss.toFixed(1))}
-                    </div>
                     <div className="overflow-x-auto">
                       <table className="text-sm border-collapse">
                         <thead>
@@ -951,7 +945,7 @@ export default function App() {
                               <td className="py-1 pr-4">{row.label}</td>
                               <td className="py-1 pr-4 tabular-nums">{row.prev.toFixed(row.decimals)}</td>
                               <td className="py-1 pr-4 tabular-nums">{row.curr.toFixed(row.decimals)}</td>
-                              <td className={`py-1 pr-4 tabular-nums ${row.curr > row.prev ? 'text-red-700 font-semibold' : row.curr < row.prev ? 'text-green-700 font-semibold' : 'opacity-50'}`}>
+                              <td className={`py-1 pr-4 tabular-nums ${row.curr !== row.prev ? 'font-semibold' : 'opacity-50'}`}>
                                 {row.curr === row.prev ? '–' : row.decimals ? signed(row.curr - row.prev) : `${row.curr > row.prev ? '+' : '−'}${Math.abs(row.curr - row.prev)}`}
                               </td>
                             </tr>

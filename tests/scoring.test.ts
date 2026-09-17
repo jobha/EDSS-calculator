@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { computeEDSSFromInputs, computeFSStep, convertBBForEDSS, convertVisualForEDSS, correctedFS } from "../src/utils/edss";
 import { suggestBB, suggestBS, suggestC, suggestM, suggestP, suggestS, suggestV } from "../src/utils/scoring";
 import { DEFAULT_STATE, decodeState, encodeState, migrateState } from "../src/utils/state";
-import { assess, compareEDSS } from "../src/utils/assessment";
+import { assess } from "../src/utils/assessment";
 import { ARM_MUSCLES, LEG_MUSCLES } from "../src/types/forms";
 import type { BowelBladderForm, BrainstemForm, CerebellarForm, MentalForm, PyramidalForm, SensoryForm, VisualForm } from "../src/types/forms";
 
@@ -302,15 +302,3 @@ test("Saved overrides survive encoding; invalid ones are dropped", () => {
   assert.deepEqual(restored.overrides, { P: 4 });
   assert.deepEqual(migrateState(3, { overrides: { P: 9, C: 2.5, X: 1, M: 5 } }).overrides, { M: 5 });
 });
-
-test("EDSS change thresholds", () => {
-  assert.equal(compareEDSS(0, 1.0).status, "stable");
-  assert.equal(compareEDSS(0, 1.5).status, "worsening");
-  assert.equal(compareEDSS(3.0, 3.5).status, "stable");
-  assert.equal(compareEDSS(5.5, 6.5).status, "worsening");
-  assert.equal(compareEDSS(6.0, 6.5).status, "worsening");
-  assert.equal(compareEDSS(4.0, 3.0).status, "improvement");
-  assert.equal(compareEDSS(6.5, 6.0).status, "improvement");
-  assert.equal(compareEDSS(2.0, 1.5).status, "stable");
-});
-

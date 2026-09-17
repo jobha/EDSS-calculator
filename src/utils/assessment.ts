@@ -51,24 +51,3 @@ export function assess(state: FormState): Assessment {
   const result = computeEDSSFromInputs(fs, state.assistance, distance, state.ambulationRestricted);
   return { suggested, fs, overridden, distance, result };
 }
-
-// Minimum EDSS change from the reference visit commonly used to define disability worsening
-// (and improvement): 1.5 from EDSS 0, 1.0 from 1.0–5.5, 0.5 from 6.0 or higher.
-export function edssChangeThreshold(reference: number): number {
-  if (reference === 0) return 1.5;
-  if (reference <= 5.5) return 1.0;
-  return 0.5;
-}
-
-export type EDSSChange = {
-  delta: number;
-  threshold: number;
-  status: "worsening" | "improvement" | "stable";
-};
-
-export function compareEDSS(previous: number, current: number): EDSSChange {
-  const delta = current - previous;
-  const threshold = edssChangeThreshold(previous);
-  const status = delta >= threshold ? "worsening" : -delta >= threshold ? "improvement" : "stable";
-  return { delta, threshold, status };
-}
