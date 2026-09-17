@@ -302,3 +302,18 @@ test("Saved overrides survive encoding; invalid ones are dropped", () => {
   assert.deepEqual(restored.overrides, { P: 4 });
   assert.deepEqual(migrateState(3, { overrides: { P: 9, C: 2.5, X: 1, M: 5 } }).overrides, { M: 5 });
 });
+
+import { buildExaminationText, buildSummary } from "../src/utils/report";
+import { translations } from "../src/i18n/translations";
+import baseline from "./fixtures/report-baseline.json";
+
+test("Summary and examination text match the saved baseline", () => {
+  for (const [name, expected] of Object.entries(baseline)) {
+    const t = translations[name.startsWith("no") ? "no" : "en"];
+    const state = decodeState(expected.state)!;
+    const a = assess(state);
+    assert.equal(a.result.edss.toFixed(1), expected.edss, name);
+    assert.equal(buildSummary(state, a, t), expected.summary, `${name} summary`);
+    assert.equal(buildExaminationText(state, a, t), expected.exam, `${name} examination text`);
+  }
+});
