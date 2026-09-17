@@ -161,11 +161,17 @@ const arms = (grade: number, side: "R" | "L" | "RL" = "RL") => Object.fromEntrie
 
 test("Pyramidal FS", () => {
   assert.equal(suggestP(pyramidal({})), 0);
-  assert.equal(suggestP(pyramidal({ babinskiLeft: true })), 1);
-  assert.equal(suggestP(pyramidal({ fatigability: true })), 2);
+  assert.equal(suggestP(pyramidal({ plantarL: 2 })), 1);
+  assert.equal(suggestP(pyramidal({ reflexKneeR: 3 })), 1);
+  assert.equal(suggestP(pyramidal({ spasticityLegsL: 1 })), 1);
+  assert.equal(suggestP(pyramidal({ hoppingR: 1 })), 1);
+  assert.equal(suggestP(pyramidal({ plantarL: 1, cutaneousR: 2, palmomentalL: 1, reflexBicepsR: 1 })), 0); // documented only
+  assert.equal(suggestP(pyramidal({ gaitSpasticity: 1 })), 1);
+  assert.equal(suggestP(pyramidal({ gaitSpasticity: 2 })), 2);
+  assert.equal(suggestP(pyramidal({ overallMotorPerformance: 1 })), 2);
   assert.equal(suggestP(pyramidal({ hipFlexorsR: 4, hipFlexorsL: 4 })), 2);
   assert.equal(suggestP(pyramidal({ hipFlexorsR: 4, hipFlexorsL: 4, dorsiflexionL: 4 })), 3);
-  assert.equal(suggestP(pyramidal({ hipFlexorsR: 4, hipFlexorsL: 4, dorsiflexionL: 4, fatigability: true })), 3);
+  assert.equal(suggestP(pyramidal({ hipFlexorsR: 4, hipFlexorsL: 4, dorsiflexionL: 4, overallMotorPerformance: 1 })), 3);
   assert.equal(suggestP(pyramidal({ hipFlexorsR: 3 })), 3);
   assert.equal(suggestP(pyramidal({ dorsiflexionR: 0 })), 3);         // severe monoparesis
   assert.equal(suggestP(pyramidal({ ...legs(3, "R"), ...arms(3, "R") })), 3); // moderate hemiparesis
@@ -275,14 +281,20 @@ test("Saved v1 state is migrated", () => {
 
 test("Saved v2 state maps muscles to scoring sheet groups", () => {
   const state = migrateState(2, {
-    pyramidal: { shoulderAbductionR: 4, shoulderExternalRotationR: 3, hipAbductionL: 2, ankleDorsiflexionL: 4, babinskiLeft: true },
+    pyramidal: { shoulderAbductionR: 4, shoulderExternalRotationR: 3, hipAbductionL: 2, ankleDorsiflexionL: 4, babinskiLeft: true, hyperreflexiaRight: true, clonusLeft: true, spasticGait: true, fatigability: true },
     cerebellar: { gaitAtaxia: 2 },
   });
   assert.equal(state.pyramidal.deltoidR, 3);
   assert.equal(state.pyramidal.hipFlexorsL, 2);
   assert.equal(state.pyramidal.dorsiflexionL, 4);
   assert.equal(state.pyramidal.bicepsR, 5);
-  assert.equal(state.pyramidal.babinskiLeft, true);
+  assert.equal(state.pyramidal.plantarL, 2);
+  assert.equal(state.pyramidal.reflexKneeR, 3);
+  assert.equal(state.pyramidal.reflexKneeL, 2);
+  assert.equal(state.pyramidal.reflexAnkleL, 4);
+  assert.equal(state.pyramidal.gaitSpasticity, 2);
+  assert.equal(state.pyramidal.overallMotorPerformance, 1);
+  assert.ok(!("babinskiLeft" in state.pyramidal));
   assert.equal(state.cerebellar.gaitAtaxia, 2);
   assert.ok(!("shoulderAbductionR" in state.pyramidal));
 });

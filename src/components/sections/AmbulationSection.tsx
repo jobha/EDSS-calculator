@@ -4,7 +4,9 @@ import type { AmbulationResult } from "../../utils/edss";
 import { assistanceLevels } from "../../utils/report";
 import { Check } from "../controls";
 
-export function AmbulationSection({ assistance, onAssistance, distance, onDistance, parsedDistance, restricted, onRestricted, ambulation, t }: {
+type DocumentationField = "reportedDistance" | "reportedTime" | "measuredDistance";
+
+export function AmbulationSection({ assistance, onAssistance, distance, onDistance, parsedDistance, restricted, onRestricted, documentation, onDocumentation, ambulation, t }: {
   assistance: AssistanceId;
   onAssistance: (value: AssistanceId) => void;
   distance: string;
@@ -12,6 +14,8 @@ export function AmbulationSection({ assistance, onAssistance, distance, onDistan
   parsedDistance: number | null;
   restricted: boolean;
   onRestricted: (value: boolean) => void;
+  documentation: Record<DocumentationField, string>;
+  onDocumentation: (field: DocumentationField, value: string) => void;
   ambulation: AmbulationResult | null;
   t: Translations;
 }) {
@@ -56,6 +60,24 @@ export function AmbulationSection({ assistance, onAssistance, distance, onDistan
             )}
           </div>
         )}
+        <div className="md:col-span-2 space-y-2">
+          <div className="text-xs text-gray-600">{t.ambulationDocumentation}</div>
+          <div className="grid sm:grid-cols-3 gap-3">
+            {(["reportedDistance", "reportedTime", "measuredDistance"] as const).map((field) => (
+              <label key={field} className="space-y-1 text-sm">
+                <span className="block">{t[field]}</span>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  className="w-full rounded-xl border p-2"
+                  value={documentation[field]}
+                  onChange={(e) => onDocumentation(field, e.target.value)}
+                />
+              </label>
+            ))}
+          </div>
+        </div>
       </div>
     </section>
   );

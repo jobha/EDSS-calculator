@@ -2,13 +2,19 @@ import type { Dispatch, SetStateAction } from "react";
 import type { Translations } from "../../i18n/translations";
 import type { Severity } from "../../types/edss";
 import type { SensoryForm } from "../../types/forms";
-import { Choice, Toggles, splitLevel, type ChoiceOption } from "../controls";
+import { Check, Choice, Optional, Toggles, splitLevel, type ChoiceOption } from "../controls";
 
 type Prefix = "pt" | "vib" | "jp";
 const LIMBS = ["RightArm", "LeftArm", "RightLeg", "LeftLeg"] as const;
+const PARAESTHESIAE = ["paraesthesiaeArmR", "paraesthesiaeArmL", "paraesthesiaeTrunkR", "paraesthesiaeTrunkL", "paraesthesiaeLegR", "paraesthesiaeLegL"] as const;
 
 export function SensorySection({ value, onChange, t }: { value: SensoryForm; onChange: Dispatch<SetStateAction<SensoryForm>>; t: Translations }) {
   const field = (prefix: Prefix, name: string) => (value as unknown as Record<string, unknown>)[`${prefix}${name}`];
+  const paraesthesiaeLabels = {
+    paraesthesiaeArmR: t.rightArmAbbrev, paraesthesiaeArmL: t.leftArmAbbrev,
+    paraesthesiaeTrunkR: t.trunkRightAbbrev, paraesthesiaeTrunkL: t.trunkLeftAbbrev,
+    paraesthesiaeLegR: t.rightLegAbbrev, paraesthesiaeLegL: t.leftLegAbbrev,
+  };
   const limbAbbrev = { RightArm: t.rightArmAbbrev, LeftArm: t.leftArmAbbrev, RightLeg: t.rightLegAbbrev, LeftLeg: t.leftLegAbbrev };
 
   const modalities: { prefix: Prefix; label: string; options: ChoiceOption<Severity>[] }[] = [
@@ -46,6 +52,16 @@ export function SensorySection({ value, onChange, t }: { value: SensoryForm; onC
           </div>
         );
       })}
+      <div className="md:col-span-2">
+        <Optional title={`${t.lhermitte}, ${t.paraesthesiae.toLowerCase()} – ${t.documentedOnly.toLowerCase()}`} active={value.lhermitte || PARAESTHESIAE.some((k) => value[k])}>
+          <Check label={t.lhermitte} checked={value.lhermitte} onChange={(checked) => onChange((prev) => ({ ...prev, lhermitte: checked }))} />
+          <Toggles
+            label={t.paraesthesiae}
+            items={PARAESTHESIAE.map((key) => ({ key, short: paraesthesiaeLabels[key], checked: value[key] }))}
+            onToggle={(key, checked) => onChange((prev) => ({ ...prev, [key]: checked }))}
+          />
+        </Optional>
+      </div>
     </>
   );
 }

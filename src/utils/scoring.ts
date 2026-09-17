@@ -4,7 +4,7 @@
 // ============================================================================
 
 import type { VisualForm, BrainstemForm, PyramidalForm, CerebellarForm, SensoryForm, BowelBladderForm, MentalForm } from "../types/forms";
-import { ARM_MUSCLES, LEG_MUSCLES } from "../types/forms";
+import { ARM_MUSCLES, LEG_MUSCLES, REFLEXES, PYRAMIDAL_SIDED_DEFAULTS } from "../types/forms";
 import type { EyeAcuity, Severity } from "../types/edss";
 
 // Grade implied by the acuity of a single eye (as the worse eye)
@@ -65,6 +65,18 @@ export function pyramidalLimbs(fs: PyramidalForm) {
   };
 }
 
+// Abnormal pyramidal signs without weakness (FS 1): exaggerated reflexes or clonus, extensor plantar
+// response, spasticity, or abnormal functional tests. Neutral plantar responses, weak or absent
+// cutaneous reflexes and a palmomental reflex are documented but do not raise the FS on their own.
+export function pyramidalSigns(fs: PyramidalForm): boolean {
+  const sides = ["R", "L"] as const;
+  const reflexes = REFLEXES.some((r) => sides.some((s) => fs[`reflex${r.charAt(0).toUpperCase()}${r.slice(1)}${s}` as keyof PyramidalForm] as number >= 3));
+  const functional = (["pronation", "downwardDrift", "legSinking", "heelWalking", "toeWalking", "hopping", "spasticityArms", "spasticityLegs"] as const)
+    .some((item) => sides.some((s) => fs[`${item}${s}`] > PYRAMIDAL_SIDED_DEFAULTS[item]));
+  const extensorPlantar = fs.plantarR === 2 || fs.plantarL === 2;
+  return reflexes || functional || extensorPlantar || fs.gaitSpasticity > 0 || fs.overallMotorPerformance > 0;
+}
+
 // Pyramidal functional system scoring
 // Grades 2–3 are defined per muscle group, grades 4–6 per limb (weakest muscle group of the limb).
 export function suggestP(fs: PyramidalForm): number {
@@ -92,12 +104,12 @@ export function suggestP(fs: PyramidalForm): number {
   const grade4Count = all.filter((v) => v === 4).length;
   if (grade4Count > 2 || all.some((v) => v <= 3)) return 3;
 
-  // 2: grade 4 in one or two muscle groups, or motor fatigability / reduced performance
-  if (grade4Count > 0 || fs.fatigability || fs.spasticGait) return 2;
+  // 2: grade 4 in one or two muscle groups, or motor fatigability / reduced performance in strenuous
+  //    tasks (overall motor performance ≥1); gait spasticity interfering with function
+  if (grade4Count > 0 || fs.overallMotorPerformance > 0 || fs.gaitSpasticity >= 2) return 2;
 
   // 1: abnormal signs without disability
-  const hasUMNSigns = fs.hyperreflexiaLeft || fs.hyperreflexiaRight || fs.babinskiLeft || fs.babinskiRight || fs.clonusLeft || fs.clonusRight;
-  if (hasUMNSigns) return 1;
+  if (pyramidalSigns(fs)) return 1;
 
   return 0;
 }
