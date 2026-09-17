@@ -1,6 +1,19 @@
 /* src/index.css */
 @import "tailwindcss";
 
+/* Printed scoring sheet: A4 with narrow margins */
+@page {
+  size: A4;
+  margin: 10mm;
+}
+
+@media print {
+  html, body, #root {
+    background: white !important;
+    min-height: 0 !important;
+  }
+}
+
 /* Force sans-serif font on all select and option elements */
 select, option {
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;

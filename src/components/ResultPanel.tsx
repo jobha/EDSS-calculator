@@ -84,6 +84,7 @@ export function ResultPanel({ assessment, delta, rationale, warnings, summary, e
           <button onClick={actions.copySummary} className="px-3 py-2 rounded-xl text-sm font-medium bg-gray-900 text-white hover:bg-gray-700">{actions.copied ? t.copied : t.copySummary}</button>
           <button onClick={actions.copyExamination} className="px-3 py-2 rounded-xl border text-sm hover:bg-gray-100">{actions.copiedExam ? t.copied : t.copyExamText}</button>
           <button onClick={onExplain} className="px-3 py-2 rounded-xl border text-sm hover:bg-blue-50 hover:border-blue-300">{t.explainEDSS}</button>
+          <button onClick={() => window.print()} className="px-3 py-2 rounded-xl border text-sm hover:bg-gray-100">{t.printSheet}</button>
         </div>
       </section>
 
